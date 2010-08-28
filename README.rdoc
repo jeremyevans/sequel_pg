@@ -117,7 +117,6 @@ above, please test and send me a report including:
 
 == Todo
 
-* Support Sequel.datetime class for timestamps
 * Support timezones in timestamps
 
 == Author

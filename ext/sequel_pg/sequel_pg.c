@@ -5,7 +5,9 @@
 #include <libpq-fe.h>
 
 #define SPG_MAX_FIELDS 256
+#define SPG_MILLISECONDS_PER_DAY 86400000000.0
 
+static VALUE spg_Sequel;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
 static VALUE spg_Date;
@@ -17,6 +19,8 @@ static ID spg_id_month;
 static ID spg_id_day;
 static ID spg_id_columns;
 static ID spg_id_output_identifier;
+static ID spg_id_datetime_class;
+static ID spg_id_op_plus;
 
 static VALUE spg_time(const char *s) {
   VALUE now;
@@ -47,6 +51,7 @@ static VALUE spg_date(const char *s) {
 }
 
 static VALUE spg_timestamp(const char *s) {
+  VALUE dtc;
   int year, month, day, hour, min, sec, usec, tokens;
   char subsec[7];
 
@@ -69,7 +74,16 @@ static VALUE spg_timestamp(const char *s) {
     usec = 0;
   }
 
-  return rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
+  dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
+  if (dtc == rb_cTime) {
+    return rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
+  } else {
+    dtc = rb_funcall(dtc, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+    if (usec != 0) {
+      dtc = rb_funcall(dtc, spg_id_op_plus, 1, rb_float_new(usec/SPG_MILLISECONDS_PER_DAY));
+    }
+    return dtc;
+  }
 }
 
 static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE rres) {
@@ -165,17 +179,20 @@ void Init_sequel_pg(void) {
   spg_id_day = rb_intern("day");
   spg_id_columns = rb_intern("@columns");
   spg_id_output_identifier = rb_intern("output_identifier");
+  spg_id_datetime_class = rb_intern("datetime_class");
+  spg_id_op_plus = rb_intern("+");
 
-  c = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
-  spg_Blob = rb_funcall(rb_funcall(c, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
+  spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
+  spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
 
+  rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
   rb_global_variable(&spg_BigDecimal);
   rb_global_variable(&spg_Date);
 
-  c = rb_funcall(rb_funcall(c, cg, 1, rb_str_new2("Postgres")), cg, 1, rb_str_new2("Dataset"));
+  c = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres")), cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
 }
