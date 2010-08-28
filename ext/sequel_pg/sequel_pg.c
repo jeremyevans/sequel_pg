@@ -6,11 +6,24 @@
 
 #define SPG_MAX_FIELDS 256
 #define SPG_MILLISECONDS_PER_DAY 86400000000.0
+#define SPG_MINUTES_PER_DAY 1440.0
+#define SPG_SECONDS_PER_DAY 86400.0
+
+#define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, rb_float_new(usec/SPG_MILLISECONDS_PER_DAY)); }
+
+#define SPG_NO_TZ 0
+#define SPG_DB_LOCAL 1
+#define SPG_DB_UTC 2
+#define SPG_APP_LOCAL 4
+#define SPG_APP_UTC 8
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
 static VALUE spg_Date;
+
+static VALUE spg_sym_utc;
+static VALUE spg_sym_local;
 
 static ID spg_id_new;
 static ID spg_id_local;
@@ -20,7 +33,13 @@ static ID spg_id_day;
 static ID spg_id_columns;
 static ID spg_id_output_identifier;
 static ID spg_id_datetime_class;
+static ID spg_id_application_timezone;
+static ID spg_id_database_timezone;
 static ID spg_id_op_plus;
+static ID spg_id_utc;
+static ID spg_id_utc_offset;
+static ID spg_id_localtime;
+static ID spg_id_new_offset;
 
 static VALUE spg_time(const char *s) {
   VALUE now;
@@ -51,38 +70,141 @@ static VALUE spg_date(const char *s) {
 }
 
 static VALUE spg_timestamp(const char *s) {
-  VALUE dtc;
-  int year, month, day, hour, min, sec, usec, tokens;
+  VALUE dtc, dt, rtz;
+  int tz = SPG_NO_TZ;
+  int year, month, day, hour, min, sec, usec, tokens, pos, utc_offset;
+  int check_offset = 0;
+  int offset_hour = 0;
+  int offset_minute = 0;
+  int offset_seconds = 0;
+  double offset_fraction = 0.0;
   char subsec[7];
 
   if (0 != strchr(s, '.')) {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%s", &year, &month, &day, &hour, &min, &sec, subsec);
+    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%s%n", &year, &month, &day, &hour, &min, &sec, subsec, &pos);
+    if (tokens == 8) {
+      check_offset = 1;
+    }
     if(tokens != 7) {
       rb_raise(rb_eArgError, "unexpected datetime format");
     }
     usec = atoi(subsec);
     usec *= (int) pow(10, (6 - strlen(subsec)));
   } else {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &min, &sec);
+    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d%n", &year, &month, &day, &hour, &min, &sec, &pos);
     if (tokens == 3) {
       hour = 0;
       min = 0;
       sec = 0;
+    } else if (tokens == 7) {
+      check_offset = 1;
     } else if (tokens != 6) {
       rb_raise(rb_eArgError, "unexpected datetime format");
     }
     usec = 0;
   }
 
-  dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
-  if (dtc == rb_cTime) {
-    return rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
-  } else {
-    dtc = rb_funcall(dtc, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
-    if (usec != 0) {
-      dtc = rb_funcall(dtc, spg_id_op_plus, 1, rb_float_new(usec/SPG_MILLISECONDS_PER_DAY));
+  if (check_offset) {
+    if(sscanf(s + pos, "%3d:%2d", &offset_hour, &offset_minute) == 0) {
+      /* No offset found */
+      check_offset = 0;
     }
-    return dtc;
+  }
+
+  /* Get values of datetime_class, database_timezone, and application_timezone */
+  dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
+  rtz = rb_funcall(spg_Sequel, spg_id_database_timezone, 0);
+  if (rtz == spg_sym_local) {
+    tz += SPG_DB_LOCAL;
+  } else if (rtz == spg_sym_utc) {
+    tz += SPG_DB_UTC;
+  }
+  rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
+  if (rtz == spg_sym_local) {
+    tz += SPG_APP_LOCAL;
+  } else if (rtz == spg_sym_utc) {
+    tz += SPG_APP_UTC;
+  }
+
+  if (dtc == rb_cTime) {
+    if (check_offset) {
+      /* Offset given, convert to local time if not already in local time.
+       * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
+       */
+      dt = rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
+      utc_offset = NUM2INT(rb_funcall(dt, spg_id_utc_offset, 0));
+      offset_seconds = offset_hour * 3600 + offset_minute * 60;
+      if (utc_offset != offset_seconds) {
+        dt = rb_funcall(dt, spg_id_op_plus, 1, INT2NUM(utc_offset - offset_seconds));
+      }
+
+      if (tz & SPG_APP_UTC) {
+        dt = rb_funcall(dt, spg_id_utc, 0);
+      } 
+      return dt;
+    } else if (tz == SPG_NO_TZ) {
+      return rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
+    }
+
+    /* No offset given, and some timezone combination given */
+    if (tz & SPG_DB_UTC) {
+      dt = rb_funcall(rb_cTime, spg_id_utc, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
+      if (tz & SPG_APP_LOCAL) {
+        return rb_funcall(dt, spg_id_localtime, 0);
+      } else {
+        return dt;
+      }
+    } else {
+      dt = rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
+      if (tz & SPG_APP_UTC) {
+        return rb_funcall(dt, spg_id_utc, 0);
+      } else {
+        return dt;
+      }
+    }
+  } else {
+    /* datetime.class == DateTime */
+    if (check_offset) {
+      /* Offset given, handle correct local time.
+       * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
+       */
+      offset_fraction = offset_hour/24.0 + offset_minute/SPG_MINUTES_PER_DAY;
+      dt = rb_funcall(dtc, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
+      SPG_DT_ADD_USEC
+
+      if (tz & SPG_APP_LOCAL) {
+        utc_offset = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_new, 0), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
+        dt = rb_funcall(dt, spg_id_new_offset, 1, rb_float_new(utc_offset));
+      } else if (tz & SPG_APP_UTC) {
+        dt = rb_funcall(dt, spg_id_new_offset, 1, INT2NUM(0));
+      } 
+      return dt;
+    } else if (tz == SPG_NO_TZ) {
+      dt = rb_funcall(dtc, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+      SPG_DT_ADD_USEC
+      return dt;
+    }
+
+    /* No offset given, and some timezone combination given */
+    if (tz & SPG_DB_LOCAL) {
+      offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
+      dt = rb_funcall(dtc, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
+      SPG_DT_ADD_USEC
+      if (tz & SPG_APP_UTC) {
+        return rb_funcall(dt, spg_id_new_offset, 1, INT2NUM(0));
+      } else {
+        return dt;
+      }
+    } else {
+      dt = rb_funcall(dtc, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+      SPG_DT_ADD_USEC
+      if (tz & SPG_APP_LOCAL) {
+        offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
+        return rb_funcall(dt, spg_id_new_offset, 1, rb_float_new(offset_fraction));
+      } else {
+        return dt;
+      }
+    }
   }
 }
 
@@ -180,7 +302,16 @@ void Init_sequel_pg(void) {
   spg_id_columns = rb_intern("@columns");
   spg_id_output_identifier = rb_intern("output_identifier");
   spg_id_datetime_class = rb_intern("datetime_class");
+  spg_id_application_timezone = rb_intern("application_timezone");
+  spg_id_database_timezone = rb_intern("database_timezone");
   spg_id_op_plus = rb_intern("+");
+  spg_id_utc = rb_intern("utc");
+  spg_id_utc_offset = rb_intern("utc_offset");
+  spg_id_localtime = rb_intern("localtime");
+  spg_id_new_offset = rb_intern("new_offset");
+
+  spg_sym_utc = ID2SYM(rb_intern("utc"));
+  spg_sym_local = ID2SYM(rb_intern("local"));
 
   spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 

@@ -115,9 +115,22 @@ above, please test and send me a report including:
   * Your compiler
   * Your ruby version
 
-== Todo
+== Known Issues
 
-* Support timezones in timestamps
+* You must be using the ISO PostgreSQL date format (which is the
+  default).  Using the SQL, POSTGRESQL, or GERMAN date formats will
+  result in incorrect date/timestamp handling. In addition to
+  PostgreSQL defaulting to ISO, Sequel also manually sets the
+  date format to ISO by default, so unless you are overriding that
+  setting (via Sequel::Postgres.use_iso_date_format = false), you
+  should be OK.
+* Adding your own type conversion procs to Sequel::Postgres::PG_TYPES
+  does not have an effect with this plugin, since the type conversion
+  is done in C.
+* The named_timezones plugin does not integrate with sequel_pg, since
+  sequel_pg does it's own timestamp conversions. The :local and :utc
+  settings for database_timestamp and application_timestamp do work,
+  as does setting the datetime_class to DateTime.
 
 == Author
 
