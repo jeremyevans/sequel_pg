@@ -1,0 +1,125 @@
+= sequel_pg
+
+sequel_pg overwrites the inner loop of the Sequel postgres adapter
+row fetching code with a C version.  The C version is significantly
+faster (2-6x) than the pure ruby version that Sequel uses by default.
+
+== Real world difference
+
+The speed up that sequel_pg gives you depends on what you are
+selecting, but it should be noticable whenever many rows is selected.
+Here's an example that shows the difference it makes on a couple of
+models:
+
+  $ irb -r model -r benchmark 
+  irb(main):001:0> Track.count
+  => 140854
+  irb(main):002:0> Album.count
+  => 5579
+  irb(main):003:0> puts Benchmark.measure{Track.each{}}
+   10.740000   0.190000  10.930000 ( 11.875343)
+  => nil
+  irb(main):004:0> puts Benchmark.measure{10.times{Album.each{}}}
+    7.920000   0.070000   7.990000 (  8.482130)
+  => nil
+  irb(main):005:0> require '/data/code/sequel_pg/ext/sequel_pg/sequel_pg'
+  => true
+  irb(main):006:0> puts Benchmark.measure{Track.each{}}
+    2.360000   0.400000   2.760000 (  3.723098)
+  => nil
+  irb(main):007:0> puts Benchmark.measure{10.times{Album.each{}}}
+    1.300000   0.190000   1.490000 (  2.001393)
+  => nil
+
+Here's an example that uses a modified version of swift's benchmarks
+(http://github.com/shanna/swift/tree/master/benchmarks/):
+  
+  benchmark         sys       user      total     real     rss
+  sequel #select    0.090000  2.020000  2.110000  2.246688 46.54m
+  sequel_pg #select 0.000000  0.250000  0.250000  0.361999  7.33m
+
+== Installing the gem
+
+  gem install sequel_pg
+
+The standard gem requires compiling from source, so you need a working
+compiler toolchain.  Since few Windows users have a working compiler
+toolchain, a windows binary gem is available that works on both 1.8
+and 1.9.
+
+== Running the specs
+
+sequel_pg doesn't ship with it's own specs.  It's designed to
+replace a part of Sequel, so it just uses Sequel's specs.
+Specifically, the spec_postgres spec from Sequel.
+
+== Reporting issues/bugs
+
+sequel_pg uses GitHub Issues for tracking issues/bugs:
+
+  http://github.com/jeremyevans/sequel_pg/issues
+
+== Contributing
+
+The source code is on GitHub:
+
+  http://github.com/jeremyevans/sequel_pg
+
+To get a copy:
+
+  git clone git://github.com/jeremyevans/sequel_pg.git
+
+There are only a few requirements, which you should probably
+have before considering use of the library:
+
+* Rake
+* Sequel
+* pg
+* libpq headers and library
+
+== Building
+
+To build the library from a git checkout, after installing the
+requirements:
+
+  rake build
+
+== Platforms Supported
+
+sequel_pg has been tested on the following:
+
+=== Operating Systems/Platforms
+
+* Linux (i386)
+* OpenBSD (amd64, i386)
+
+=== Compiler Versions
+
+* gcc (3.3.5, 4.2.1, 4.4.3)
+
+=== Ruby Versions
+
+* jruby cext branch (compiles but untested and unusable, as pg itself
+  doesn't compile yet)
+* rbx head
+* ruby 1.8.6
+* ruby 1.8.7
+* ruby 1.9.1
+* ruby 1.9.2
+* ruby head
+
+If your platform, compiler version, or ruby version is not listed
+above, please test and send me a report including:
+
+  * Your operating system and platform (e.g. i386, x86_64/amd64)
+  * Your compiler
+  * Your ruby version
+
+== Todo
+
+* Support identifier_output_method
+* Support timezones in times and timestamps
+
+== Author
+
+Jeremy Evans <code@jeremyevans.net>
