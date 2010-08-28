@@ -174,6 +174,6 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_Date);
 
   c = rb_funcall(rb_funcall(c, cg, 1, rb_str_new2("Postgres")), cg, 1, rb_str_new2("Dataset"));
-  rb_define_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
-  rb_define_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
+  rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
+  rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
 }
