@@ -1,3 +1,4 @@
 /ext/sequel_pg/Makefile
 /ext/sequel_pg/mkmf.log
 /ext/sequel_pg/sequel_pg.*o
+*.gem
