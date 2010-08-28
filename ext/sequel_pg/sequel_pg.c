@@ -16,6 +16,7 @@ static ID spg_id_year;
 static ID spg_id_month;
 static ID spg_id_day;
 static ID spg_id_columns;
+static ID spg_id_output_identifier;
 
 static VALUE spg_time(const char *s) {
   VALUE now;
@@ -94,7 +95,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   }
 
   for(j=0; j<nfields; j++) {
-    colsyms[j] = ID2SYM(rb_intern(PQfname(res, j)));
+    colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, rb_str_new2(PQfname(res, j)));
   }
   rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
 
@@ -163,6 +164,7 @@ void Init_sequel_pg(void) {
   spg_id_month = rb_intern("month");
   spg_id_day = rb_intern("day");
   spg_id_columns = rb_intern("@columns");
+  spg_id_output_identifier = rb_intern("output_identifier");
 
   c = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
   spg_Blob = rb_funcall(rb_funcall(c, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 

@@ -117,8 +117,8 @@ above, please test and send me a report including:
 
 == Todo
 
-* Support identifier_output_method
-* Support timezones in times and timestamps
+* Support Sequel.datetime class for timestamps
+* Support timezones in timestamps
 
 == Author
 
