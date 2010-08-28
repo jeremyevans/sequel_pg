@@ -9,3 +9,9 @@ desc "Build the extension"
 task :build=>[:clean] do
   sh %{cd ext/sequel_pg && #{RUBY} extconf.rb && make}
 end
+
+desc "Build the gem"
+task :gem do
+  sh %{gem build sequel_pg.gemspec}
+end
+
