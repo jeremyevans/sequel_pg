@@ -1,4 +1,8 @@
 /ext/sequel_pg/Makefile
 /ext/sequel_pg/mkmf.log
 /ext/sequel_pg/sequel_pg.*o
+/ext/sequel_pg/1.*
+/pkg
+/tmp
 *.gem
+*.rbc
