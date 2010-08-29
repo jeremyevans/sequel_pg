@@ -1,8 +1,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include <ruby.h>
 #include <libpq-fe.h>
+#include <ruby.h>
+
+#if defined(HAVE_RUBY_ENCODING_H) && HAVE_RUBY_ENCODING_H
+#define SPG_ENCODING 1
+#include <ruby/encoding.h>
+#endif
 
 #define SPG_MAX_FIELDS 256
 #define SPG_MILLISECONDS_PER_DAY 86400000000.0
@@ -30,7 +35,6 @@ static ID spg_id_local;
 static ID spg_id_year;
 static ID spg_id_month;
 static ID spg_id_day;
-static ID spg_id_columns;
 static ID spg_id_output_identifier;
 static ID spg_id_datetime_class;
 static ID spg_id_application_timezone;
@@ -40,6 +44,20 @@ static ID spg_id_utc;
 static ID spg_id_utc_offset;
 static ID spg_id_localtime;
 static ID spg_id_new_offset;
+
+static ID spg_id_columns;
+static ID spg_id_encoding;
+
+#if SPG_ENCODING
+static int enc_get_index(VALUE val)
+{
+  int i = ENCODING_GET_INLINED(val);
+  if (i == ENCODING_INLINE_MAX) {
+    i = NUM2INT(rb_ivar_get(val, spg_id_encoding));
+  }
+  return i;
+}
+#endif
 
 static VALUE spg_time(const char *s) {
   VALUE now;
@@ -208,7 +226,7 @@ static VALUE spg_timestamp(const char *s) {
   }
 }
 
-static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE rres) {
+static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
   return self;
 }
 
@@ -222,6 +240,11 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   VALUE h, rv;
   size_t l;
   char * v;
+
+#ifdef SPG_ENCODING
+  int enc_index;
+  enc_index = enc_get_index(rres);
+#endif
 
   Data_Get_Struct(rres, PGresult, res);
   ntuples = PQntuples(res);
@@ -280,6 +303,9 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
             break;
           default:
             rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
+#ifdef SPG_ENCODING
+            rb_enc_associate_index(rv, enc_index);
+#endif
         }
       }
       rb_hash_aset(h, colsyms[j], rv);
@@ -299,7 +325,6 @@ void Init_sequel_pg(void) {
   spg_id_year = rb_intern("year");
   spg_id_month = rb_intern("month");
   spg_id_day = rb_intern("day");
-  spg_id_columns = rb_intern("@columns");
   spg_id_output_identifier = rb_intern("output_identifier");
   spg_id_datetime_class = rb_intern("datetime_class");
   spg_id_application_timezone = rb_intern("application_timezone");
@@ -309,6 +334,9 @@ void Init_sequel_pg(void) {
   spg_id_utc_offset = rb_intern("utc_offset");
   spg_id_localtime = rb_intern("localtime");
   spg_id_new_offset = rb_intern("new_offset");
+
+  spg_id_columns = rb_intern("@columns");
+  spg_id_encoding = rb_intern("@encoding");
 
   spg_sym_utc = ID2SYM(rb_intern("utc"));
   spg_sym_local = ID2SYM(rb_intern("local"));
