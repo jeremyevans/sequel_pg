@@ -92,6 +92,7 @@ sequel_pg has been tested on the following:
 
 * Linux (i386)
 * OpenBSD (amd64, i386)
+* Windows XP (i386)
 
 === Compiler Versions
 
