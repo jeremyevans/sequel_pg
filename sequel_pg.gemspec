@@ -11,7 +11,6 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.homepage = "http://github.com/jeremyevans/sequel_pg"
   s.required_ruby_version = ">= 1.8.6"
   s.files = %w(LICENSE CHANGELOG README.rdoc Rakefile ext/sequel_pg/extconf.rb ext/sequel_pg/sequel_pg.c)
-  s.require_path = "ext/sequel_pg"
   s.extensions << 'ext/sequel_pg/extconf.rb'
   s.add_dependency("pg", [">= 0.8.0"])
   s.add_dependency("sequel", [">= 3.6.0"])
