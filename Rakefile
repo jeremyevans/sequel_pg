@@ -7,7 +7,7 @@ RUBY=ENV['RUBY'] || File.join(RbConfig::CONFIG['bindir'], RbConfig::CONFIG['ruby
 
 desc "Do a full cleaning"
 task :distclean do
-  CLEAN.include %w'tmp pkg sequel_pg*.gem lib/1.*'
+  CLEAN.include %w'tmp pkg sequel_pg*.gem lib'
   Rake::Task[:clean].invoke
 end
 

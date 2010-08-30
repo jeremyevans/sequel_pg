@@ -4,5 +4,6 @@
 /ext/sequel_pg/1.*
 /pkg
 /tmp
+/lib
 *.gem
 *.rbc
