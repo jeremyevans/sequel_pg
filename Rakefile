@@ -1,9 +1,7 @@
 require "rake"
 require "rake/clean"
-require 'rbconfig'
 
 CLEAN.include %w'**.rbc rdoc'
-RUBY=ENV['RUBY'] || File.join(RbConfig::CONFIG['bindir'], RbConfig::CONFIG['ruby_install_name'])
 
 desc "Do a full cleaning"
 task :distclean do
