@@ -7,7 +7,7 @@ faster (2-6x) than the pure ruby version that Sequel uses by default.
 == Real world difference
 
 The speed up that sequel_pg gives you depends on what you are
-selecting, but it should be noticable whenever many rows is selected.
+selecting, but it should be noticable whenever many rows are selected.
 Here's an example that shows the difference it makes on a couple of
 models:
 
