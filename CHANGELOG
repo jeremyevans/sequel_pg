@@ -1,3 +1,7 @@
+=== 1.0.1
+
+* Correctly handle timestamps with negative offsets and fractional hours (jeremyevans)
+
 === 1.0.0 
 
 * Initial Public Release
