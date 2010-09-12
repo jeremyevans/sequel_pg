@@ -126,6 +126,8 @@ static VALUE spg_timestamp(const char *s) {
     if(sscanf(s + pos, "%3d:%2d", &offset_hour, &offset_minute) == 0) {
       /* No offset found */
       check_offset = 0;
+    } else if (s[pos] == '-') {
+      offset_minute *= -1;
     }
   }
 
