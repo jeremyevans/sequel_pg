@@ -1,5 +1,7 @@
 === 1.0.2
 
+* Build the Windows gem against PostgreSQL 9.0.1 to support the new default bytea serialization format (jeremyevans)
+
 * Allow use of Sequel::Postgres::PG_TYPES to add custom conversion support for types not handled by default (funny-falcon)
 
 * Fix handling of timestamps with fractional seconds and offsets (funny-falcon)
