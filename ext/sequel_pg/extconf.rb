@@ -5,8 +5,11 @@ dir_config('pg', ENV["POSTGRES_INCLUDE"] || (IO.popen("pg_config --includedir").
 
 if enable_config("static-build")
 	# Link against all required libraries for static build, if they are available
-	have_library('gdi32', 'CreateDC') && append_library($libs, 'gdi32')
-	have_library('secur32') && append_library($libs, 'secur32')
+	have_library('gdi32', 'CreateDC')
+	have_library('secur32')
+	have_library('ws2_32')
+	have_library('eay32')
+	have_library('ssleay32', 'SSL_pending')
 end
 
 if (have_library('pq') || have_library('libpq') || have_library('ms/libpq')) && have_header('libpq-fe.h')

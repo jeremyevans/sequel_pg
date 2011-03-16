@@ -12,7 +12,7 @@ Rake::ExtensionTask.new('sequel_pg', SEQUEL_PG_GEMSPEC) do |ext|
   COMPILE_HOME               = Pathname( "~/.rake-compiler" ).expand_path
   STATIC_SOURCESDIR          = COMPILE_HOME + 'sources'
   STATIC_BUILDDIR            = COMPILE_HOME + 'builds'
-  POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '8.4.4'
+  POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.0.1'
   STATIC_POSTGRESQL_BUILDDIR = STATIC_BUILDDIR + "postgresql-#{POSTGRESQL_VERSION}"
   STATIC_POSTGRES_LIBDIR     = STATIC_POSTGRESQL_BUILDDIR + 'src/interfaces/libpq'
   STATIC_POSTGRES_INCDIR     = STATIC_POSTGRESQL_BUILDDIR + 'src/include'
