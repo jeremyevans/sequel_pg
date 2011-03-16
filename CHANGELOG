@@ -1,3 +1,9 @@
+=== 1.0.2
+
+* Allow use of Sequel::Postgres::PG_TYPES to add custom conversion support for types not handled by default (funny-falcon)
+
+* Fix handling of timestamps with fractional seconds and offsets (funny-falcon)
+
 === 1.0.1
 
 * Correctly handle timestamps with negative offsets and fractional hours (jeremyevans)
