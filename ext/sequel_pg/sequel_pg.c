@@ -90,45 +90,40 @@ static VALUE spg_date(const char *s) {
 static VALUE spg_timestamp(const char *s) {
   VALUE dtc, dt, rtz;
   int tz = SPG_NO_TZ;
-  int year, month, day, hour, min, sec, usec, tokens, pos, utc_offset;
-  int check_offset = 0;
+  int year, month, day, hour, min, sec, usec, tokens, utc_offset;
+  int usec_start, usec_stop;
+  char offset_sign = 0;
   int offset_hour = 0;
   int offset_minute = 0;
   int offset_seconds = 0;
   double offset_fraction = 0.0;
-  char subsec[7];
 
   if (0 != strchr(s, '.')) {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%s%n", &year, &month, &day, &hour, &min, &sec, subsec, &pos);
-    if (tokens == 8) {
-      check_offset = 1;
-    }
-    if(tokens != 7) {
+    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%n%d%n%c%02d:%02d", 
+	&year, &month, &day, &hour, &min, &sec,
+       	&usec_start, &usec, &usec_stop, 
+	&offset_sign, &offset_hour, &offset_minute);
+    if(tokens < 7) {
       rb_raise(rb_eArgError, "unexpected datetime format");
     }
-    usec = atoi(subsec);
-    usec *= (int) pow(10, (6 - strlen(subsec)));
+    usec *= (int) pow(10, (6 - (usec_stop - usec_start)));
   } else {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d%n", &year, &month, &day, &hour, &min, &sec, &pos);
+    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d%c%02d:%02d", 
+	&year, &month, &day, &hour, &min, &sec,
+	&offset_sign, &offset_hour, &offset_minute);
     if (tokens == 3) {
       hour = 0;
       min = 0;
       sec = 0;
-    } else if (tokens == 7) {
-      check_offset = 1;
-    } else if (tokens != 6) {
+    } else if (tokens < 6) {
       rb_raise(rb_eArgError, "unexpected datetime format");
     }
     usec = 0;
   }
 
-  if (check_offset) {
-    if(sscanf(s + pos, "%3d:%2d", &offset_hour, &offset_minute) == 0) {
-      /* No offset found */
-      check_offset = 0;
-    } else if (s[pos] == '-') {
-      offset_minute *= -1;
-    }
+  if (offset_sign == '-') {
+    offset_hour *= -1;
+    offset_minute *= -1;
   }
 
   /* Get values of datetime_class, database_timezone, and application_timezone */
@@ -147,7 +142,7 @@ static VALUE spg_timestamp(const char *s) {
   }
 
   if (dtc == rb_cTime) {
-    if (check_offset) {
+    if (offset_sign) {
       /* Offset given, convert to local time if not already in local time.
        * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
        */
@@ -184,7 +179,7 @@ static VALUE spg_timestamp(const char *s) {
     }
   } else {
     /* datetime.class == DateTime */
-    if (check_offset) {
+    if (offset_sign) {
       /* Offset given, handle correct local time.
        * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
        */
