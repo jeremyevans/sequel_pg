@@ -23,6 +23,7 @@
 #define SPG_APP_UTC 8
 
 static VALUE spg_Sequel;
+static VALUE spg_PG_TYPES;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
 static VALUE spg_Date;
@@ -44,6 +45,9 @@ static ID spg_id_utc;
 static ID spg_id_utc_offset;
 static ID spg_id_localtime;
 static ID spg_id_new_offset;
+
+static ID spg_id_call;
+static ID spg_id_get;
 
 static ID spg_id_columns;
 static ID spg_id_encoding;
@@ -235,6 +239,7 @@ static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
 static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   PGresult *res;
   VALUE colsyms[SPG_MAX_FIELDS];
+  VALUE colconvert[SPG_MAX_FIELDS];
   long ntuples;
   long nfields;
   long i;
@@ -257,6 +262,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
 
   for(j=0; j<nfields; j++) {
     colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, rb_str_new2(PQfname(res, j)));
+    colconvert[j] = Qfalse;
   }
   rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
 
@@ -308,6 +314,12 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
 #ifdef SPG_ENCODING
             rb_enc_associate_index(rv, enc_index);
 #endif
+            if (colconvert[j] == Qfalse) {
+              colconvert[j] = rb_funcall(spg_PG_TYPES, spg_id_get, 1, INT2NUM(PQftype(res, j)));
+            }
+            if (colconvert[j] != Qnil) {
+              rv = rb_funcall(colconvert[j], spg_id_call, 1, rv); 
+            }
         }
       }
       rb_hash_aset(h, colsyms[j], rv);
@@ -319,7 +331,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
 }
 
 void Init_sequel_pg(void) {
-  VALUE c;
+  VALUE c, spg_Postgres;
   ID cg;
   cg = rb_intern("const_get");
   spg_id_new = rb_intern("new");
@@ -337,6 +349,9 @@ void Init_sequel_pg(void) {
   spg_id_localtime = rb_intern("localtime");
   spg_id_new_offset = rb_intern("new_offset");
 
+  spg_id_call = rb_intern("call");
+  spg_id_get = rb_intern("[]");
+
   spg_id_columns = rb_intern("@columns");
   spg_id_encoding = rb_intern("@encoding");
 
@@ -347,13 +362,15 @@ void Init_sequel_pg(void) {
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
+  spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
+  spg_PG_TYPES = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("PG_TYPES"));
 
   rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
   rb_global_variable(&spg_BigDecimal);
   rb_global_variable(&spg_Date);
 
-  c = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres")), cg, 1, rb_str_new2("Dataset"));
+  c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
 }
