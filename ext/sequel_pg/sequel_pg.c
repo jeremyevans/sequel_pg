@@ -257,7 +257,33 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
 
   for(j=0; j<nfields; j++) {
     colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, rb_str_new2(PQfname(res, j)));
-    colconvert[j] = Qfalse;
+    i = PQftype(res, j);
+    switch (i) {
+      case 16:
+      case 17:
+      case 20:
+      case 21:
+      case 22:
+      case 23:
+      case 26:
+      case 700:
+      case 701:
+      case 790:
+      case 1700:
+      case 1082:
+      case 1083:
+      case 1266:
+      case 1114:
+      case 1184:
+      case 18:
+      case 25:
+      case 1043:
+        colconvert[j] = Qnil;
+        break;
+      default:
+        colconvert[j] = rb_funcall(spg_PG_TYPES, spg_id_get, 1, INT2NUM(i));
+        break;
+    }
   }
   rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
 
@@ -304,14 +330,19 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
           case 1184:
             rv = spg_timestamp(v);
             break;
+          case 18: /* char */
+          case 25: /* text */
+          case 1043: /* varchar*/
+            rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
+#ifdef SPG_ENCODING
+            rb_enc_associate_index(rv, enc_index);
+#endif
+            break;
           default:
             rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
 #ifdef SPG_ENCODING
             rb_enc_associate_index(rv, enc_index);
 #endif
-            if (colconvert[j] == Qfalse) {
-              colconvert[j] = rb_funcall(spg_PG_TYPES, spg_id_get, 1, INT2NUM(PQftype(res, j)));
-            }
             if (colconvert[j] != Qnil) {
               rv = rb_funcall(colconvert[j], spg_id_call, 1, rv); 
             }
