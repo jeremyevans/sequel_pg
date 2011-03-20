@@ -359,6 +359,8 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
 void Init_sequel_pg(void) {
   VALUE c, spg_Postgres;
   ID cg;
+  rb_funcall(rb_cObject, rb_intern("require"), 1, rb_str_new2("sequel/adapters/postgres"));
+
   cg = rb_intern("const_get");
   spg_id_new = rb_intern("new");
   spg_id_local = rb_intern("local");
