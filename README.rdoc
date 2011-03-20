@@ -131,6 +131,11 @@ above, please test and send me a report including:
   sequel_pg does it's own timestamp conversions. The :local and :utc
   settings for database_timestamp and application_timestamp do work,
   as does setting the datetime_class to DateTime.
+* You do not need to require the library, the sequel postgres adapter
+  will require it automatically.  If you are using bundler, you
+  should add it to your Gemfile like so:
+
+    gem 'sequel_pg', :require=>'sequel'
 
 == Author
 
