@@ -23,7 +23,6 @@
 #define SPG_APP_UTC 8
 
 static VALUE spg_Sequel;
-static VALUE spg_PG_TYPES;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
 static VALUE spg_Date;
@@ -48,6 +47,9 @@ static ID spg_id_new_offset;
 
 static ID spg_id_call;
 static ID spg_id_get;
+
+static ID spg_id_db;
+static ID spg_id_conversion_procs;
 
 static ID spg_id_columns;
 static ID spg_id_encoding;
@@ -242,6 +244,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   VALUE h, rv;
   size_t l;
   char * v;
+  VALUE conv_procs = NULL;
 
 #ifdef SPG_ENCODING
   int enc_index;
@@ -281,7 +284,10 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
         colconvert[j] = Qnil;
         break;
       default:
-        colconvert[j] = rb_funcall(spg_PG_TYPES, spg_id_get, 1, INT2NUM(i));
+        if (conv_procs == NULL) {
+          conv_procs = rb_funcall(rb_funcall(self, spg_id_db, 0), spg_id_conversion_procs, 0);
+        }
+        colconvert[j] = rb_funcall(conv_procs, spg_id_get, 1, INT2NUM(i));
         break;
     }
   }
@@ -378,6 +384,9 @@ void Init_sequel_pg(void) {
   spg_id_call = rb_intern("call");
   spg_id_get = rb_intern("[]");
 
+  spg_id_db = rb_intern("db");
+  spg_id_conversion_procs = rb_intern("conversion_procs");
+
   spg_id_columns = rb_intern("@columns");
   spg_id_encoding = rb_intern("@encoding");
 
@@ -389,7 +398,6 @@ void Init_sequel_pg(void) {
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
   spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
-  spg_PG_TYPES = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("PG_TYPES"));
 
   rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
