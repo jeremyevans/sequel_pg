@@ -51,7 +51,7 @@ and 1.9.
 
 sequel_pg doesn't ship with it's own specs.  It's designed to
 replace a part of Sequel, so it just uses Sequel's specs.
-Specifically, the spec_postgres spec from Sequel.
+Specifically, the spec_postgres rake task from Sequel.
 
 == Reporting issues/bugs
 
@@ -125,8 +125,8 @@ above, please test and send me a report including:
   date format to ISO by default, so unless you are overriding that
   setting (via Sequel::Postgres.use_iso_date_format = false), you
   should be OK.
-* Adding your own type conversion procs to Sequel::Postgres::PG_TYPES
-  only has an effect if those types are not handled by default.
+* Adding your own type conversion procs only has an effect if those
+  types are not handled by default.
 * The named_timezones plugin does not integrate with sequel_pg, since
   sequel_pg does it's own timestamp conversions. The :local and :utc
   settings for database_timestamp and application_timestamp do work,
