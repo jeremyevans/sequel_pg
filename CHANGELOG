@@ -1,4 +1,8 @@
-=== 1.0.2
+=== 1.1.0 (2011-06-01)
+
+* Work with new Database#conversion_procs method in Sequel 3.24.0 (jeremyevans)
+
+=== 1.0.2 (2011-03-16)
 
 * Build the Windows gem against PostgreSQL 9.0.1 to support the new default bytea serialization format (jeremyevans)
 
@@ -6,10 +10,10 @@
 
 * Fix handling of timestamps with fractional seconds and offsets (funny-falcon)
 
-=== 1.0.1
+=== 1.0.1 (2010-09-12)
 
 * Correctly handle timestamps with negative offsets and fractional hours (jeremyevans)
 
-=== 1.0.0 
+=== 1.0.0 (2010-08-31)
 
 * Initial Public Release
