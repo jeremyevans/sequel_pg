@@ -26,6 +26,7 @@ static VALUE spg_Sequel;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
 static VALUE spg_Date;
+static VALUE spg_SQLTime;
 
 static VALUE spg_sym_utc;
 static VALUE spg_sym_local;
@@ -79,8 +80,8 @@ static VALUE spg_time(const char *s) {
     rb_raise(rb_eArgError, "unexpected time format");
   }
 
-  now = rb_funcall(rb_cTime, spg_id_new, 0);
-  return rb_funcall(rb_cTime, spg_id_local, 6, rb_funcall(now, spg_id_year, 0), rb_funcall(now, spg_id_month, 0), rb_funcall(now, spg_id_day, 0), INT2NUM(hour), INT2NUM(minute), INT2NUM(second), INT2NUM(usec));
+  now = rb_funcall(spg_SQLTime, spg_id_new, 0);
+  return rb_funcall(spg_SQLTime, spg_id_local, 7, rb_funcall(now, spg_id_year, 0), rb_funcall(now, spg_id_month, 0), rb_funcall(now, spg_id_day, 0), INT2NUM(hour), INT2NUM(minute), INT2NUM(second), INT2NUM(usec));
 }
 
 static VALUE spg_date(const char *s) {
@@ -395,6 +396,7 @@ void Init_sequel_pg(void) {
 
   spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
+  spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
   spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
