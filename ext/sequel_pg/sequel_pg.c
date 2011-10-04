@@ -39,7 +39,7 @@ static ID spg_id_day;
 static ID spg_id_output_identifier;
 static ID spg_id_datetime_class;
 static ID spg_id_application_timezone;
-static ID spg_id_database_timezone;
+static ID spg_id_timezone;
 static ID spg_id_op_plus;
 static ID spg_id_utc;
 static ID spg_id_utc_offset;
@@ -94,7 +94,7 @@ static VALUE spg_date(const char *s) {
   return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
 }
 
-static VALUE spg_timestamp(const char *s) {
+static VALUE spg_timestamp(const char *s, VALUE self) {
   VALUE dtc, dt, rtz;
   int tz = SPG_NO_TZ;
   int year, month, day, hour, min, sec, usec, tokens, utc_offset;
@@ -135,7 +135,7 @@ static VALUE spg_timestamp(const char *s) {
 
   /* Get values of datetime_class, database_timezone, and application_timezone */
   dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
-  rtz = rb_funcall(spg_Sequel, spg_id_database_timezone, 0);
+  rtz = rb_funcall(rb_funcall(self, spg_id_db, 0), spg_id_timezone, 0);
   if (rtz == spg_sym_local) {
     tz += SPG_DB_LOCAL;
   } else if (rtz == spg_sym_utc) {
@@ -335,7 +335,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
             break;
           case 1114: /* timestamp */
           case 1184:
-            rv = spg_timestamp(v);
+            rv = spg_timestamp(v, self);
             break;
           case 18: /* char */
           case 25: /* text */
@@ -375,7 +375,7 @@ void Init_sequel_pg(void) {
   spg_id_output_identifier = rb_intern("output_identifier");
   spg_id_datetime_class = rb_intern("datetime_class");
   spg_id_application_timezone = rb_intern("application_timezone");
-  spg_id_database_timezone = rb_intern("database_timezone");
+  spg_id_timezone = rb_intern("timezone");
   spg_id_op_plus = rb_intern("+");
   spg_id_utc = rb_intern("utc");
   spg_id_utc_offset = rb_intern("utc_offset");

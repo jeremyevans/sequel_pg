@@ -1,3 +1,11 @@
+=== HEAD
+
+* Work with the new Database#timezone setting in Sequel 3.29.0 (jeremyevans)
+
+=== 1.1.1 (2011-09-01)
+
+* Work with new Sequel::SQLTime for time columns in Sequel 3.27.0 (jeremyevans)
+
 === 1.1.0 (2011-06-01)
 
 * Work with new Database#conversion_procs method in Sequel 3.24.0 (jeremyevans)
