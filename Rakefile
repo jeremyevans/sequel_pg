@@ -5,7 +5,7 @@ CLEAN.include %w'**.rbc rdoc'
 
 desc "Do a full cleaning"
 task :distclean do
-  CLEAN.include %w'tmp pkg sequel_pg*.gem lib'
+  CLEAN.include %w'tmp pkg sequel_pg*.gem lib/*.so'
   Rake::Task[:clean].invoke
 end
 

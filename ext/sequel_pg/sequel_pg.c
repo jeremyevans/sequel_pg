@@ -7,6 +7,9 @@
 #if defined(HAVE_RUBY_ENCODING_H) && HAVE_RUBY_ENCODING_H
 #define SPG_ENCODING 1
 #include <ruby/encoding.h>
+#define ENC_INDEX ,enc_index
+#else
+#define ENC_INDEX
 #endif
 
 #define SPG_MAX_FIELDS 256
@@ -22,6 +25,16 @@
 #define SPG_APP_LOCAL 4
 #define SPG_APP_UTC 8
 
+#define SPG_YIELD_NORMAL 0
+#define SPG_YIELD_COLUMN 1
+#define SPG_YIELD_COLUMNS 2
+#define SPG_YIELD_FIRST 3
+#define SPG_YIELD_ARRAY 4
+#define SPG_YIELD_KV_HASH 5
+#define SPG_YIELD_MKV_HASH 6
+#define SPG_YIELD_KMV_HASH 7
+#define SPG_YIELD_MKMV_HASH 8
+
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
@@ -30,6 +43,12 @@ static VALUE spg_SQLTime;
 
 static VALUE spg_sym_utc;
 static VALUE spg_sym_local;
+static VALUE spg_sym_map;
+static VALUE spg_sym_first;
+static VALUE spg_sym_array;
+static VALUE spg_sym_hash;
+static VALUE spg_sym__sequel_pg_type;
+static VALUE spg_sym__sequel_pg_value;
 
 static ID spg_id_new;
 static ID spg_id_local;
@@ -48,6 +67,7 @@ static ID spg_id_new_offset;
 
 static ID spg_id_call;
 static ID spg_id_get;
+static ID spg_id_opts;
 
 static ID spg_id_db;
 static ID spg_id_conversion_procs;
@@ -234,6 +254,116 @@ static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
   return self;
 }
 
+static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* colconvert
+#ifdef SPG_ENCODING
+, int enc_index
+#endif
+) {
+  char *v;
+  VALUE rv;
+  size_t l;
+
+  if(PQgetisnull(res, i, j)) {
+    rv = Qnil;
+  } else {
+    v = PQgetvalue(res, i, j);
+
+    switch(PQftype(res, j)) {
+      case 16: /* boolean */
+        rv = *v == 't' ? Qtrue : Qfalse;
+        break;
+      case 17: /* bytea */
+        v = (char *)PQunescapeBytea((unsigned char*)v, &l);
+        rv = rb_funcall(spg_Blob, spg_id_new, 1, rb_str_new(v, l));
+        PQfreemem(v);
+        break;
+      case 20: /* integer */
+      case 21:
+      case 22:
+      case 23:
+      case 26:
+        rv = rb_cstr2inum(v, 10);
+        break;
+      case 700: /* float */
+      case 701:
+        rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+        break;
+      case 790: /* numeric */
+      case 1700:
+        rv = rb_funcall(spg_BigDecimal, spg_id_new, 1, rb_str_new(v, PQgetlength(res, i, j)));
+        break;
+      case 1082: /* date */
+        rv = spg_date(v);
+        break;
+      case 1083: /* time */
+      case 1266:
+        rv = spg_time(v);
+        break;
+      case 1114: /* timestamp */
+      case 1184:
+        rv = spg_timestamp(v, self);
+        break;
+      case 18: /* char */
+      case 25: /* text */
+      case 1043: /* varchar*/
+        rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
+#ifdef SPG_ENCODING
+        rb_enc_associate_index(rv, enc_index);
+#endif
+        break;
+      default:
+        rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
+#ifdef SPG_ENCODING
+        rb_enc_associate_index(rv, enc_index);
+#endif
+        if (colconvert[j] != Qnil) {
+          rv = rb_funcall(colconvert[j], spg_id_call, 1, rv); 
+        }
+    }
+  }
+  return rv;
+}
+
+static VALUE spg__col_values(VALUE self, VALUE v, VALUE *colsyms, long nfields, PGresult *res, long i, VALUE *colconvert
+#ifdef SPG_ENCODING
+, int enc_index
+#endif
+) {
+  long j;
+  VALUE cur;
+  long len = RARRAY_LEN(v);
+  VALUE a = rb_ary_new2(len);
+  for (j=0; j<len; j++) {
+    cur = rb_ary_entry(v, j);
+    rb_ary_store(a, j, cur == Qnil ? Qnil : spg__col_value(self, res, i, NUM2LONG(cur), colconvert ENC_INDEX));
+  }
+  return a;
+}
+
+static long spg__field_id(VALUE v, VALUE *colsyms, long nfields) {
+  long j;
+  for (j=0; j<nfields; j++) {
+    if (colsyms[j] == v) {
+      return j;
+    }
+  }
+  return -1;
+}
+
+static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
+  long i;
+  long j;
+  VALUE cur;
+  long len = RARRAY_LEN(v);
+  VALUE pg_columns = rb_ary_new2(len);
+  for (i=0; i<len; i++) {
+    cur = rb_ary_entry(v, i);
+    j = spg__field_id(cur, colsyms, nfields);
+    rb_ary_store(pg_columns, i, j == -1 ? Qnil : LONG2NUM(j));
+  }
+  return pg_columns;
+}
+
 static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   PGresult *res;
   VALUE colsyms[SPG_MAX_FIELDS];
@@ -242,10 +372,12 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   long nfields;
   long i;
   long j;
-  VALUE h, rv;
-  size_t l;
-  char * v;
-  VALUE conv_procs = NULL;
+  VALUE h;
+  VALUE conv_procs = 0;
+  VALUE opts;
+  VALUE pg_type;
+  VALUE pg_value;
+  char type = SPG_YIELD_NORMAL;
 
 #ifdef SPG_ENCODING
   int enc_index;
@@ -285,7 +417,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
         colconvert[j] = Qnil;
         break;
       default:
-        if (conv_procs == NULL) {
+        if (conv_procs == 0) {
           conv_procs = rb_funcall(rb_funcall(self, spg_id_db, 0), spg_id_conversion_procs, 0);
         }
         colconvert[j] = rb_funcall(conv_procs, spg_id_get, 1, INT2NUM(i));
@@ -294,72 +426,138 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   }
   rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
 
-  for(i=0; i<ntuples; i++) {
-    h = rb_hash_new();
-    for(j=0; j<nfields; j++) {
-      if(PQgetisnull(res, i, j)) {
-        rv = Qnil;
-      } else {
-        v = PQgetvalue(res, i, j);
-
-        switch(PQftype(res, j)) {
-          case 16: /* boolean */
-            rv = *v == 't' ? Qtrue : Qfalse;
-            break;
-          case 17: /* bytea */
-            v = (char *)PQunescapeBytea((unsigned char*)v, &l);
-            rv = rb_funcall(spg_Blob, spg_id_new, 1, rb_str_new(v, l));
-            PQfreemem(v);
-            break;
-          case 20: /* integer */
-          case 21:
-          case 22:
-          case 23:
-          case 26:
-            rv = rb_cstr2inum(v, 10);
-            break;
-          case 700: /* float */
-          case 701:
-            rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
-            break;
-          case 790: /* numeric */
-          case 1700:
-            rv = rb_funcall(spg_BigDecimal, spg_id_new, 1, rb_str_new(v, PQgetlength(res, i, j)));
-            break;
-          case 1082: /* date */
-            rv = spg_date(v);
-            break;
-          case 1083: /* time */
-          case 1266:
-            rv = spg_time(v);
-            break;
-          case 1114: /* timestamp */
-          case 1184:
-            rv = spg_timestamp(v, self);
-            break;
-          case 18: /* char */
-          case 25: /* text */
-          case 1043: /* varchar*/
-            rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
-#ifdef SPG_ENCODING
-            rb_enc_associate_index(rv, enc_index);
-#endif
-            break;
-          default:
-            rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
-#ifdef SPG_ENCODING
-            rb_enc_associate_index(rv, enc_index);
-#endif
-            if (colconvert[j] != Qnil) {
-              rv = rb_funcall(colconvert[j], spg_id_call, 1, rv); 
-            }
+  opts = rb_funcall(self, spg_id_opts, 0);
+  if (rb_type(opts) == T_HASH) {
+    pg_type = rb_hash_aref(opts, spg_sym__sequel_pg_type);
+    pg_value = rb_hash_aref(opts, spg_sym__sequel_pg_value);
+    if (SYMBOL_P(pg_type)) {
+      if (pg_type == spg_sym_map) {
+        if (SYMBOL_P(pg_value)) {
+          type = SPG_YIELD_COLUMN;
+        } else if (rb_type(pg_value) == T_ARRAY) {
+          type = SPG_YIELD_COLUMNS;
+        }
+      } else if (pg_type == spg_sym_first) {
+        type = SPG_YIELD_FIRST;
+      } else if (pg_type == spg_sym_array) {
+        type = SPG_YIELD_ARRAY;
+      } else if (pg_type == spg_sym_hash && rb_type(pg_value) == T_ARRAY) {
+        VALUE pg_value_key, pg_value_value;
+        pg_value_key = rb_ary_entry(pg_value, 0);
+        pg_value_value = rb_ary_entry(pg_value, 1);
+        if (SYMBOL_P(pg_value_key)) {
+          if (SYMBOL_P(pg_value_value)) {
+            type = SPG_YIELD_KV_HASH;
+          } else if (rb_type(pg_value_value) == T_ARRAY) {
+            type = SPG_YIELD_KMV_HASH;
+          }
+        } else if (rb_type(pg_value_key) == T_ARRAY) {
+          if (SYMBOL_P(pg_value_value)) {
+            type = SPG_YIELD_MKV_HASH;
+          } else if (rb_type(pg_value_value) == T_ARRAY) {
+            type = SPG_YIELD_MKMV_HASH;
+          }
         }
       }
-      rb_hash_aset(h, colsyms[j], rv);
     }
-    rb_yield(h);
   }
-  
+
+  switch(type) {
+    case SPG_YIELD_NORMAL:
+      /* Normal, hash for entire row */
+      for(i=0; i<ntuples; i++) {
+        h = rb_hash_new();
+        for(j=0; j<nfields; j++) {
+          rb_hash_aset(h, colsyms[j], spg__col_value(self, res, i, j, colconvert ENC_INDEX));
+        }
+        rb_yield(h);
+      }
+      break;
+    case SPG_YIELD_COLUMN:
+      /* Single column */
+      j = spg__field_id(pg_value, colsyms, nfields);
+      if (j == -1) {
+        for(i=0; i<ntuples; i++) {
+          rb_yield(Qnil);
+        } 
+      } else {
+        for(i=0; i<ntuples; i++) {
+          rb_yield(spg__col_value(self, res, i, j, colconvert ENC_INDEX));
+        } 
+      }
+      break;
+    case SPG_YIELD_COLUMNS:
+      /* Multiple columns as an array */
+      h = spg__field_ids(pg_value, colsyms, nfields);
+      for(i=0; i<ntuples; i++) {
+        rb_yield(spg__col_values(self, h, colsyms, nfields, res, i, colconvert ENC_INDEX));
+      } 
+      break;
+    case SPG_YIELD_FIRST:
+      /* First column */
+      for(i=0; i<ntuples; i++) {
+        rb_yield(spg__col_value(self, res, i, 0, colconvert ENC_INDEX));
+      } 
+      break;
+    case SPG_YIELD_ARRAY:
+      /* Array of all columns */
+      for(i=0; i<ntuples; i++) {
+        h = rb_ary_new2(nfields);
+        for(j=0; j<nfields; j++) {
+          rb_ary_store(h, j, spg__col_value(self, res, i, j, colconvert ENC_INDEX));
+        }
+        rb_yield(h);
+      } 
+      break;
+    case SPG_YIELD_KV_HASH:
+      {
+        VALUE k, v;
+        h = rb_hash_new();
+        k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
+        v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
+        for(i=0; i<ntuples; i++) {
+          rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert ENC_INDEX), spg__col_value(self, res, i, v, colconvert ENC_INDEX));
+        } 
+        rb_yield(h);
+      }
+      break;
+    case SPG_YIELD_MKV_HASH:
+      {
+        VALUE k, v;
+        h = rb_hash_new();
+        k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
+        v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
+        for(i=0; i<ntuples; i++) {
+          rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_value(self, res, i, v, colconvert ENC_INDEX));
+        } 
+        rb_yield(h);
+      }
+      break;
+    case SPG_YIELD_KMV_HASH:
+      {
+        VALUE k, v;
+        h = rb_hash_new();
+        k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
+        v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
+        for(i=0; i<ntuples; i++) {
+          rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
+        } 
+        rb_yield(h);
+      }
+      break;
+    case SPG_YIELD_MKMV_HASH:
+      {
+        VALUE k, v;
+        h = rb_hash_new();
+        k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
+        v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
+        for(i=0; i<ntuples; i++) {
+          rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
+        } 
+        rb_yield(h);
+      }
+      break;
+  }
   return self;
 }
 
@@ -385,6 +583,8 @@ void Init_sequel_pg(void) {
   spg_id_call = rb_intern("call");
   spg_id_get = rb_intern("[]");
 
+  spg_id_opts = rb_intern("opts");
+
   spg_id_db = rb_intern("db");
   spg_id_conversion_procs = rb_intern("conversion_procs");
 
@@ -393,6 +593,12 @@ void Init_sequel_pg(void) {
 
   spg_sym_utc = ID2SYM(rb_intern("utc"));
   spg_sym_local = ID2SYM(rb_intern("local"));
+  spg_sym_map = ID2SYM(rb_intern("map"));
+  spg_sym_first = ID2SYM(rb_intern("first"));
+  spg_sym_array = ID2SYM(rb_intern("array"));
+  spg_sym_hash = ID2SYM(rb_intern("hash"));
+  spg_sym__sequel_pg_type = ID2SYM(rb_intern("_sequel_pg_type"));
+  spg_sym__sequel_pg_value = ID2SYM(rb_intern("_sequel_pg_value"));
 
   spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
@@ -409,4 +615,6 @@ void Init_sequel_pg(void) {
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
+
+  rb_require("sequel_pg/sequel_pg");
 }
