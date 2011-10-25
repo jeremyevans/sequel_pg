@@ -38,6 +38,31 @@ Here's an example that uses a modified version of swift's benchmarks
   sequel #select    0.090000  2.020000  2.110000  2.246688 46.54m
   sequel_pg #select 0.000000  0.250000  0.250000  0.361999  7.33m
 
+sequel_pg also has code to speed up the map, to_hash, select_hash,
+select_map, and select_order_map Dataset methods, which is on by
+default. It also has code to speed up the loading of model objects,
+which is off by default as it isn't fully compatible.  It doesn't
+handle overriding Model.call, Model#set_values, or
+Model#after_initialize, which may cause problems with the
+following plugins that ship with Sequel:
+
+* class_table_inheritance
+* force_encoding
+* serializiation
+* single_table_interitance
+* typecast_on_load
+* update_primary_key
+
+If you want to extract that last ounce of performance when loading
+model objects and you can live with the limitations, you can
+enable the model optimization via:
+
+  # All datasets
+  DB.optimize_model_load = true
+
+  # Specific dataset
+  Artist.dataset.optimize_model_load = true
+
 == Installing the gem
 
   gem install sequel_pg

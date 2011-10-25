@@ -1,5 +1,7 @@
 === HEAD
 
+* Add optimize_model_load setting to speedup loading of model objects, off by default (jeremyevans)
+
 * Add major speedup to Dataset#map, #to_hash, #select_map, #select_order_map, and #select_hash (jeremyevans)
 
 * Work with the new Database#timezone setting in Sequel 3.29.0 (jeremyevans)

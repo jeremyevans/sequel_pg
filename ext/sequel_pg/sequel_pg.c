@@ -34,6 +34,7 @@
 #define SPG_YIELD_MKV_HASH 6
 #define SPG_YIELD_KMV_HASH 7
 #define SPG_YIELD_MKMV_HASH 8
+#define SPG_YIELD_MODEL 9
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
@@ -47,6 +48,7 @@ static VALUE spg_sym_map;
 static VALUE spg_sym_first;
 static VALUE spg_sym_array;
 static VALUE spg_sym_hash;
+static VALUE spg_sym_model;
 static VALUE spg_sym__sequel_pg_type;
 static VALUE spg_sym__sequel_pg_value;
 
@@ -74,6 +76,7 @@ static ID spg_id_conversion_procs;
 
 static ID spg_id_columns;
 static ID spg_id_encoding;
+static ID spg_id_values;
 
 #if SPG_ENCODING
 static int enc_get_index(VALUE val)
@@ -458,6 +461,8 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
             type = SPG_YIELD_MKMV_HASH;
           }
         }
+      } else if (pg_type == spg_sym_model && rb_type(pg_value) == T_CLASS) {
+        type = SPG_YIELD_MODEL;
       }
     }
   }
@@ -510,6 +515,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
       } 
       break;
     case SPG_YIELD_KV_HASH:
+      /* Hash with single key and single value */
       {
         VALUE k, v;
         h = rb_hash_new();
@@ -522,6 +528,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
       }
       break;
     case SPG_YIELD_MKV_HASH:
+      /* Hash with array of keys and single value */
       {
         VALUE k, v;
         h = rb_hash_new();
@@ -534,6 +541,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
       }
       break;
     case SPG_YIELD_KMV_HASH:
+      /* Hash with single keys and array of values */
       {
         VALUE k, v;
         h = rb_hash_new();
@@ -546,6 +554,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
       }
       break;
     case SPG_YIELD_MKMV_HASH:
+      /* Hash with array of keys and array of values */
       {
         VALUE k, v;
         h = rb_hash_new();
@@ -555,6 +564,19 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
           rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
         } 
         rb_yield(h);
+      }
+      break;
+    case SPG_YIELD_MODEL:
+      /* Model object for entire row */
+      for(i=0; i<ntuples; i++) {
+        h = rb_hash_new();
+        for(j=0; j<nfields; j++) {
+          rb_hash_aset(h, colsyms[j], spg__col_value(self, res, i, j, colconvert ENC_INDEX));
+        }
+        /* Abuse local variable */
+        pg_type = rb_obj_alloc(pg_value);
+        rb_ivar_set(pg_type, spg_id_values, h);
+        rb_yield(pg_type);
       }
       break;
   }
@@ -590,6 +612,7 @@ void Init_sequel_pg(void) {
 
   spg_id_columns = rb_intern("@columns");
   spg_id_encoding = rb_intern("@encoding");
+  spg_id_values = rb_intern("@values");
 
   spg_sym_utc = ID2SYM(rb_intern("utc"));
   spg_sym_local = ID2SYM(rb_intern("local"));
@@ -597,6 +620,7 @@ void Init_sequel_pg(void) {
   spg_sym_first = ID2SYM(rb_intern("first"));
   spg_sym_array = ID2SYM(rb_intern("array"));
   spg_sym_hash = ID2SYM(rb_intern("hash"));
+  spg_sym_model = ID2SYM(rb_intern("model"));
   spg_sym__sequel_pg_type = ID2SYM(rb_intern("_sequel_pg_type"));
   spg_sym__sequel_pg_value = ID2SYM(rb_intern("_sequel_pg_value"));
 
