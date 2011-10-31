@@ -1,4 +1,4 @@
-=== HEAD
+=== 1.2.0 (2011-11-01)
 
 * Add optimize_model_load setting to speedup loading of model objects, off by default (jeremyevans)
 
