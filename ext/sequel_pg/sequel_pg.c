@@ -52,6 +52,10 @@ static VALUE spg_sym_model;
 static VALUE spg_sym__sequel_pg_type;
 static VALUE spg_sym__sequel_pg_value;
 
+static VALUE spg_nan;
+static VALUE spg_pos_inf;
+static VALUE spg_neg_inf;
+
 static ID spg_id_new;
 static ID spg_id_local;
 static ID spg_id_year;
@@ -289,7 +293,15 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         break;
       case 700: /* float */
       case 701:
-        rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+        if (strcmp("NaN", v) == 0) {
+          rv = spg_nan;
+        } else if (strcmp("Infinity", v) == 0) {
+          rv = spg_pos_inf;
+        } else if (strcmp("-Infinity", v) == 0) {
+          rv = spg_neg_inf;
+        } else {
+          rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+        }
         break;
       case 790: /* numeric */
       case 1700:
@@ -631,10 +643,17 @@ void Init_sequel_pg(void) {
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
   spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
 
+  spg_nan = rb_eval_string("0.0/0.0");
+  spg_pos_inf = rb_eval_string("1.0/0.0");
+  spg_neg_inf = rb_eval_string("-1.0/0.0");
+
   rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
   rb_global_variable(&spg_BigDecimal);
   rb_global_variable(&spg_Date);
+  rb_global_variable(&spg_nan);
+  rb_global_variable(&spg_pos_inf);
+  rb_global_variable(&spg_neg_inf);
 
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
