@@ -1,3 +1,7 @@
+=== 1.2.1 (2012-02-22)
+
+* Handle NaN, Infinity, and -Infinity for double precision values correctly (jeremyevans)
+
 === 1.2.0 (2011-11-01)
 
 * Add optimize_model_load setting to speedup loading of model objects, off by default (jeremyevans)
