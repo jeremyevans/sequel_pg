@@ -1,3 +1,7 @@
+=== 1.2.2 (2012-03-09)
+
+* Get microsecond accuracy when using datetime_class = DateTime with 1.8-1.9.2 stdlib date library via Rational (jeremyevans)
+
 === 1.2.1 (2012-02-22)
 
 * Handle NaN, Infinity, and -Infinity for double precision values correctly (jeremyevans)
