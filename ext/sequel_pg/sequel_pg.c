@@ -13,11 +13,12 @@
 #endif
 
 #define SPG_MAX_FIELDS 256
-#define SPG_MILLISECONDS_PER_DAY 86400000000.0
+#define SPG_MICROSECONDS_PER_DAY_LL 86400000000ULL
+#define SPG_MICROSECONDS_PER_DAY 86400000000.0
 #define SPG_MINUTES_PER_DAY 1440.0
 #define SPG_SECONDS_PER_DAY 86400.0
 
-#define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, rb_float_new(usec/SPG_MILLISECONDS_PER_DAY)); }
+#define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, spg_id_Rational ? rb_funcall(rb_cObject, spg_id_Rational, 2, INT2NUM(usec), ULL2NUM(SPG_MICROSECONDS_PER_DAY_LL)) : rb_float_new(usec/SPG_MICROSECONDS_PER_DAY)); }
 
 #define SPG_NO_TZ 0
 #define SPG_DB_LOCAL 1
@@ -56,6 +57,7 @@ static VALUE spg_nan;
 static VALUE spg_pos_inf;
 static VALUE spg_neg_inf;
 
+static ID spg_id_Rational;
 static ID spg_id_new;
 static ID spg_id_local;
 static ID spg_id_year;
@@ -651,9 +653,16 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_Blob);
   rb_global_variable(&spg_BigDecimal);
   rb_global_variable(&spg_Date);
+  rb_global_variable(&spg_SQLTime);
+  rb_global_variable(&spg_Postgres);
   rb_global_variable(&spg_nan);
   rb_global_variable(&spg_pos_inf);
   rb_global_variable(&spg_neg_inf);
+
+  /* Check for 1.8-1.9.2 stdlib date that needs Rational for usec accuracy */
+  if (rb_eval_string("Date.today.instance_variable_get(:@ajd)") != Qnil) {
+    spg_id_Rational = rb_intern("Rational");
+  }
 
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
