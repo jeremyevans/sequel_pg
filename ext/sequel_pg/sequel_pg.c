@@ -72,6 +72,8 @@ static ID spg_id_utc;
 static ID spg_id_utc_offset;
 static ID spg_id_localtime;
 static ID spg_id_new_offset;
+static ID spg_id_convert_infinite_timestamps;
+static ID spg_id_infinite_timestamp_value;
 
 static ID spg_id_call;
 static ID spg_id_get;
@@ -123,6 +125,17 @@ static VALUE spg_date(const char *s) {
   return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
 }
 
+static VALUE spg_timestamp_error(const char *s, VALUE self) {
+  VALUE db;
+  db = rb_funcall(self, spg_id_db, 0);
+  if(RTEST(rb_funcall(db, spg_id_convert_infinite_timestamps, 0))) {
+    if((strcmp(s, "infinity") == 0) || (strcmp(s, "-infinity") == 0)) {
+      return rb_funcall(db, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new2(s));
+    }
+  }
+  rb_raise(rb_eArgError, "unexpected datetime format");
+}
+
 static VALUE spg_timestamp(const char *s, VALUE self) {
   VALUE dtc, dt, rtz;
   int tz = SPG_NO_TZ;
@@ -140,7 +153,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
        	&usec_start, &usec, &usec_stop, 
 	&offset_sign, &offset_hour, &offset_minute);
     if(tokens < 7) {
-      rb_raise(rb_eArgError, "unexpected datetime format");
+      return spg_timestamp_error(s, self);
     }
     usec *= (int) pow(10, (6 - (usec_stop - usec_start)));
   } else {
@@ -152,7 +165,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
       min = 0;
       sec = 0;
     } else if (tokens < 6) {
-      rb_raise(rb_eArgError, "unexpected datetime format");
+      return spg_timestamp_error(s, self);
     }
     usec = 0;
   }
@@ -615,6 +628,8 @@ void Init_sequel_pg(void) {
   spg_id_utc_offset = rb_intern("utc_offset");
   spg_id_localtime = rb_intern("localtime");
   spg_id_new_offset = rb_intern("new_offset");
+  spg_id_convert_infinite_timestamps = rb_intern("convert_infinite_timestamps");
+  spg_id_infinite_timestamp_value = rb_intern("infinite_timestamp_value");
 
   spg_id_call = rb_intern("call");
   spg_id_get = rb_intern("[]");
