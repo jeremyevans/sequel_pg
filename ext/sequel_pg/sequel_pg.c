@@ -36,6 +36,10 @@
 #define SPG_YIELD_KMV_HASH 7
 #define SPG_YIELD_MKMV_HASH 8
 #define SPG_YIELD_MODEL 9
+#define SPG_YIELD_KV_HASH_GROUPS 10
+#define SPG_YIELD_MKV_HASH_GROUPS 11
+#define SPG_YIELD_KMV_HASH_GROUPS 12
+#define SPG_YIELD_MKMV_HASH_GROUPS 13
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
@@ -49,6 +53,7 @@ static VALUE spg_sym_map;
 static VALUE spg_sym_first;
 static VALUE spg_sym_array;
 static VALUE spg_sym_hash;
+static VALUE spg_sym_hash_groups;
 static VALUE spg_sym_model;
 static VALUE spg_sym__sequel_pg_type;
 static VALUE spg_sym__sequel_pg_value;
@@ -471,21 +476,21 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
         type = SPG_YIELD_FIRST;
       } else if (pg_type == spg_sym_array) {
         type = SPG_YIELD_ARRAY;
-      } else if (pg_type == spg_sym_hash && rb_type(pg_value) == T_ARRAY) {
+      } else if ((pg_type == spg_sym_hash || pg_type == spg_sym_hash_groups) && rb_type(pg_value) == T_ARRAY) {
         VALUE pg_value_key, pg_value_value;
         pg_value_key = rb_ary_entry(pg_value, 0);
         pg_value_value = rb_ary_entry(pg_value, 1);
         if (SYMBOL_P(pg_value_key)) {
           if (SYMBOL_P(pg_value_value)) {
-            type = SPG_YIELD_KV_HASH;
+            type = pg_type == spg_sym_hash_groups ? SPG_YIELD_KV_HASH_GROUPS : SPG_YIELD_KV_HASH;
           } else if (rb_type(pg_value_value) == T_ARRAY) {
-            type = SPG_YIELD_KMV_HASH;
+            type = pg_type == spg_sym_hash_groups ? SPG_YIELD_KMV_HASH_GROUPS : SPG_YIELD_KMV_HASH;
           }
         } else if (rb_type(pg_value_key) == T_ARRAY) {
           if (SYMBOL_P(pg_value_value)) {
-            type = SPG_YIELD_MKV_HASH;
+            type = pg_type == spg_sym_hash_groups ? SPG_YIELD_MKV_HASH_GROUPS : SPG_YIELD_MKV_HASH;
           } else if (rb_type(pg_value_value) == T_ARRAY) {
-            type = SPG_YIELD_MKMV_HASH;
+            type = pg_type == spg_sym_hash_groups ? SPG_YIELD_MKMV_HASH_GROUPS : SPG_YIELD_MKMV_HASH;
           }
         }
       } else if (pg_type == spg_sym_model && rb_type(pg_value) == T_CLASS) {
@@ -542,54 +547,114 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
       } 
       break;
     case SPG_YIELD_KV_HASH:
+    case SPG_YIELD_KV_HASH_GROUPS:
       /* Hash with single key and single value */
       {
         VALUE k, v;
         h = rb_hash_new();
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
-        for(i=0; i<ntuples; i++) {
-          rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert ENC_INDEX), spg__col_value(self, res, i, v, colconvert ENC_INDEX));
-        } 
+        if(type == SPG_YIELD_KV_HASH) {
+          for(i=0; i<ntuples; i++) {
+            rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert ENC_INDEX), spg__col_value(self, res, i, v, colconvert ENC_INDEX));
+          } 
+        } else {
+          VALUE kv, vv, a;
+          for(i=0; i<ntuples; i++) {
+            kv = spg__col_value(self, res, i, k, colconvert ENC_INDEX);
+            vv = spg__col_value(self, res, i, v, colconvert ENC_INDEX);
+            a = rb_hash_lookup(h, kv);
+            if(!RTEST(a)) {
+              rb_hash_aset(h, kv, rb_ary_new3(1, vv));
+            } else {
+              rb_ary_push(a, vv);
+            }
+          } 
+        }
         rb_yield(h);
       }
       break;
     case SPG_YIELD_MKV_HASH:
+    case SPG_YIELD_MKV_HASH_GROUPS:
       /* Hash with array of keys and single value */
       {
         VALUE k, v;
         h = rb_hash_new();
         k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
-        for(i=0; i<ntuples; i++) {
-          rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_value(self, res, i, v, colconvert ENC_INDEX));
-        } 
+        if(type == SPG_YIELD_MKV_HASH) {
+          for(i=0; i<ntuples; i++) {
+            rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_value(self, res, i, v, colconvert ENC_INDEX));
+          } 
+        } else {
+          VALUE kv, vv, a;
+          for(i=0; i<ntuples; i++) {
+            kv = spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX);
+            vv = spg__col_value(self, res, i, v, colconvert ENC_INDEX);
+            a = rb_hash_lookup(h, kv);
+            if(!RTEST(a)) {
+              rb_hash_aset(h, kv, rb_ary_new3(1, vv));
+            } else {
+              rb_ary_push(a, vv);
+            }
+          } 
+        }
         rb_yield(h);
       }
       break;
     case SPG_YIELD_KMV_HASH:
+    case SPG_YIELD_KMV_HASH_GROUPS:
       /* Hash with single keys and array of values */
       {
         VALUE k, v;
         h = rb_hash_new();
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
-        for(i=0; i<ntuples; i++) {
-          rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
-        } 
+        if(type == SPG_YIELD_KMV_HASH) {
+          for(i=0; i<ntuples; i++) {
+            rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
+          } 
+        } else {
+          VALUE kv, vv, a;
+          for(i=0; i<ntuples; i++) {
+            kv = spg__col_value(self, res, i, k, colconvert ENC_INDEX);
+            vv = spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX);
+            a = rb_hash_lookup(h, kv);
+            if(!RTEST(a)) {
+              rb_hash_aset(h, kv, rb_ary_new3(1, vv));
+            } else {
+              rb_ary_push(a, vv);
+            }
+          } 
+        }
         rb_yield(h);
       }
       break;
     case SPG_YIELD_MKMV_HASH:
+    case SPG_YIELD_MKMV_HASH_GROUPS:
       /* Hash with array of keys and array of values */
       {
         VALUE k, v;
         h = rb_hash_new();
         k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
-        for(i=0; i<ntuples; i++) {
-          rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
-        } 
+        if(type == SPG_YIELD_MKMV_HASH) {
+          for(i=0; i<ntuples; i++) {
+            rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX), spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX));
+          } 
+        } else {
+          VALUE kv, vv, a;
+          for(i=0; i<ntuples; i++) {
+            kv = spg__col_values(self, k, colsyms, nfields, res, i, colconvert ENC_INDEX);
+            vv = spg__col_values(self, v, colsyms, nfields, res, i, colconvert ENC_INDEX);
+            a = rb_hash_lookup(h, kv);
+            if(!RTEST(a)) {
+              rb_hash_aset(h, kv, rb_ary_new3(1, vv));
+            } else {
+              rb_ary_push(a, vv);
+            }
+          } 
+        }
         rb_yield(h);
       }
       break;
@@ -649,6 +714,7 @@ void Init_sequel_pg(void) {
   spg_sym_first = ID2SYM(rb_intern("first"));
   spg_sym_array = ID2SYM(rb_intern("array"));
   spg_sym_hash = ID2SYM(rb_intern("hash"));
+  spg_sym_hash_groups = ID2SYM(rb_intern("hash_groups"));
   spg_sym_model = ID2SYM(rb_intern("model"));
   spg_sym__sequel_pg_type = ID2SYM(rb_intern("_sequel_pg_type"));
   spg_sym__sequel_pg_value = ID2SYM(rb_intern("_sequel_pg_value"));

@@ -40,6 +40,15 @@ class Sequel::Postgres::Dataset
     end
   end
 
+  # In the case where both arguments given, use an optimized version.
+  def to_hash_groups(key_column, value_column = nil)
+    if value_column
+      clone(:_sequel_pg_type=>:hash_groups, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
+    else
+      super
+    end
+  end
+
   # If model loads are being optimized and this is a model load, use the optimized
   # version.
   def each
