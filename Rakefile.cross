@@ -1,6 +1,6 @@
 load File.join(File.dirname(File.expand_path(__FILE__)), 'Rakefile')
 
-ENV['RUBY_CC_VERSION'] = '1.8.6:1.9.1'
+ENV['RUBY_CC_VERSION'] = '1.8.7:1.9.2'
 require "rake/extensiontask"
 load('sequel_pg.gemspec')
 Rake::ExtensionTask.new('sequel_pg', SEQUEL_PG_GEMSPEC) do |ext|
@@ -9,18 +9,15 @@ Rake::ExtensionTask.new('sequel_pg', SEQUEL_PG_GEMSPEC) do |ext|
   ext.cross_compile = true
 	ext.cross_platform = %w[i386-mingw32 i386-mswin32-60]
 
-  COMPILE_HOME               = Pathname( "~/.rake-compiler" ).expand_path
-  STATIC_SOURCESDIR          = COMPILE_HOME + 'sources'
-  STATIC_BUILDDIR            = COMPILE_HOME + 'builds'
-  POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.0.1'
-  STATIC_POSTGRESQL_BUILDDIR = STATIC_BUILDDIR + "postgresql-#{POSTGRESQL_VERSION}"
+  STATIC_BUILDDIR            = Pathname("../ruby-pg/build/builds").expand_path
+  STATIC_POSTGRESQL_BUILDDIR = STATIC_BUILDDIR + "postgresql-9.1.1"
   STATIC_POSTGRES_LIBDIR     = STATIC_POSTGRESQL_BUILDDIR + 'src/interfaces/libpq'
   STATIC_POSTGRES_INCDIR     = STATIC_POSTGRESQL_BUILDDIR + 'src/include'
   # configure options only for cross compile
   ext.cross_config_options += [
-		"--with-pg-include=#{STATIC_POSTGRES_LIBDIR}",
-		"--with-opt-include=#{STATIC_POSTGRES_INCDIR}",
- 	"--with-pg-lib=#{STATIC_POSTGRES_LIBDIR}",
- 	"--enable-static-build",
- ]
+    "--with-pg-include=#{STATIC_POSTGRES_LIBDIR}",
+    "--with-opt-include=#{STATIC_POSTGRES_INCDIR}",
+    "--with-pg-lib=#{STATIC_POSTGRES_LIBDIR}",
+    "--enable-static-build",
+  ]
 end
