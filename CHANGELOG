@@ -1,3 +1,11 @@
+=== 1.3.0 (2012-04-02)
+
+* Build Windows version against PostgreSQL 9.1.1, ruby 1.8.7, and ruby 1.9.2 (previously 9.0.1, 1.8.6, and 1.9.1) (jeremyevans)
+
+* Add major speedup for new Sequel 3.34.0 methods Dataset#to_hash_groups and #select_hash_groups (jeremyevans)
+
+* Handle infinite timestamp values using Database#convert_infinite_timestamps in Sequel 3.34.0 (jeremyevans)
+
 === 1.2.2 (2012-03-09)
 
 * Get microsecond accuracy when using datetime_class = DateTime with 1.8-1.9.2 stdlib date library via Rational (jeremyevans)
