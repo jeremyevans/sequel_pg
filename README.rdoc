@@ -38,13 +38,13 @@ Here's an example that uses a modified version of swift's benchmarks
   sequel #select    0.090000  2.020000  2.110000  2.246688 46.54m
   sequel_pg #select 0.000000  0.250000  0.250000  0.361999  7.33m
 
-sequel_pg also has code to speed up the map, to_hash, select_hash,
-select_map, and select_order_map Dataset methods, which is on by
-default. It also has code to speed up the loading of model objects,
-which is off by default as it isn't fully compatible.  It doesn't
-handle overriding Model.call, Model#set_values, or
-Model#after_initialize, which may cause problems with the
-following plugins that ship with Sequel:
+sequel_pg also has code to speed up the map, to_hash, to_hash_groups,
+select_hash, select_hash_groups, select_map, and select_order_map
+Dataset methods, which is on by default. It also has code to speed
+up the loading of model objects, which is off by default as it isn't
+fully compatible.  It doesn't handle overriding Model.call,
+Model#set_values, or Model#after_initialize, which may cause problems
+with the following plugins that ship with Sequel:
 
 * class_table_inheritance
 * force_encoding
@@ -62,6 +62,32 @@ enable the model optimization via:
 
   # Specific dataset
   Artist.dataset.optimize_model_load = true
+
+== Streaming
+
+If you are using PostgreSQL 9.2 or higher on the client, then sequel_pg
+should enable streaming support.  This allows you to stream returned
+rows one at a time, instead of collecting the entire result set in
+memory (which is how PostgreSQL works by default).  You can check
+if streaming is supported by:
+
+  Sequel::Postgres.supports_streaming?
+
+If streaming is supported, you can load the streaming support into the
+database:
+
+  require 'sequel_pg/streaming'
+  DB.extend Sequel::Postgres::Streaming
+
+Then you can call the Dataset#stream method to have the dataset use
+the streaming support:
+
+  DB[:table].stream.each{|row| ...}
+
+If you want to enable streaming for all of a database's datasets, you
+can do the following:
+
+  DB.extend_datasets Sequel::Postgres::Streaming::AllQueries
 
 == Installing the gem
 
