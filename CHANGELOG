@@ -1,5 +1,7 @@
 === HEAD
 
+* Add support for streaming on PostgreSQL 9.2 using PQsetRowProcessor (jeremyevans)
+
 * Respect DEBUG environment variable when building (jeremyevans)
 
 === 1.3.0 (2012-04-02)

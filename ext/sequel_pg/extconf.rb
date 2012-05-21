@@ -14,6 +14,7 @@ if enable_config("static-build")
 end
 
 if (have_library('pq') || have_library('libpq') || have_library('ms/libpq')) && have_header('libpq-fe.h')
+  have_func 'PQsetRowProcessor'
   create_makefile("sequel_pg")
 else
   puts 'Could not find PostgreSQL build environment (libraries & headers): Makefile not created'

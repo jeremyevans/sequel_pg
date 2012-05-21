@@ -41,11 +41,23 @@
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 
+struct spg_row_proc_info {
+  VALUE dataset;
+  VALUE block;
+  VALUE model;
+  VALUE colsyms[SPG_MAX_FIELDS];
+  VALUE colconvert[SPG_MAX_FIELDS];
+#if SPG_ENCODING
+  int enc_index;
+#endif
+};
+
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
 static VALUE spg_Date;
 static VALUE spg_SQLTime;
+static VALUE spg_PGError;
 
 static VALUE spg_sym_utc;
 static VALUE spg_sym_local;
@@ -399,32 +411,13 @@ static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
   return pg_columns;
 }
 
-static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
-  PGresult *res;
-  VALUE colsyms[SPG_MAX_FIELDS];
-  VALUE colconvert[SPG_MAX_FIELDS];
-  long ntuples;
-  long nfields;
+static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE *colconvert) {
   long i;
   long j;
-  VALUE h;
+  long nfields;
   VALUE conv_procs = 0;
-  VALUE opts;
-  VALUE pg_type;
-  VALUE pg_value;
-  char type = SPG_YIELD_NORMAL;
 
-#ifdef SPG_ENCODING
-  int enc_index;
-  enc_index = enc_get_index(rres);
-#endif
-
-  Data_Get_Struct(rres, PGresult, res);
-  ntuples = PQntuples(res);
   nfields = PQnfields(res);
-  if (nfields > SPG_MAX_FIELDS) {
-    rb_raise(rb_eRangeError, "more than %d columns in query", SPG_MAX_FIELDS);
-  }
 
   for(j=0; j<nfields; j++) {
     colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, rb_str_new2(PQfname(res, j)));
@@ -459,6 +452,36 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
         break;
     }
   }
+}
+
+static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
+  PGresult *res;
+  VALUE colsyms[SPG_MAX_FIELDS];
+  VALUE colconvert[SPG_MAX_FIELDS];
+  long ntuples;
+  long nfields;
+  long i;
+  long j;
+  VALUE h;
+  VALUE opts;
+  VALUE pg_type;
+  VALUE pg_value;
+  char type = SPG_YIELD_NORMAL;
+
+#ifdef SPG_ENCODING
+  int enc_index;
+  enc_index = enc_get_index(rres);
+#endif
+
+  Data_Get_Struct(rres, PGresult, res);
+  ntuples = PQntuples(res);
+  nfields = PQnfields(res);
+  if (nfields > SPG_MAX_FIELDS) {
+    rb_raise(rb_eRangeError, "more than %d columns in query", SPG_MAX_FIELDS);
+  }
+
+  spg_set_column_info(self, res, colsyms, colconvert);
+
   rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
 
   opts = rb_funcall(self, spg_id_opts, 0);
@@ -675,6 +698,199 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   return self;
 }
 
+static VALUE spg_supports_streaming_p(VALUE self) {
+  return
+#if HAVE_PQSETROWPROCESSOR
+  Qtrue;
+#else
+  Qfalse;
+#endif
+}
+
+#if HAVE_PQSETROWPROCESSOR
+static VALUE spg__rp_value(VALUE self, PGresult* res, const PGdataValue* dvs, int j, VALUE* colconvert
+#ifdef SPG_ENCODING
+, int enc_index
+#endif
+) {
+  const char *v;
+  PGdataValue dv = dvs[j];
+  VALUE rv;
+  size_t l;
+  int len = dv.len;
+
+  if(len < 0) {
+    rv = Qnil;
+  } else {
+    v = dv.value;
+
+    switch(PQftype(res, j)) {
+      case 16: /* boolean */
+        rv = *v == 't' ? Qtrue : Qfalse;
+        break;
+      case 17: /* bytea */
+        v = PQunescapeBytea((unsigned char*)v, &l);
+        rv = rb_funcall(spg_Blob, spg_id_new, 1, rb_str_new(v, l));
+        PQfreemem((char *)v);
+        break;
+      case 20: /* integer */
+      case 21:
+      case 22:
+      case 23:
+      case 26:
+        rv = rb_str2inum(rb_str_new(v, len), 10);
+        break;
+      case 700: /* float */
+      case 701:
+        if (strncmp("NaN", v, 3) == 0) {
+          rv = spg_nan;
+        } else if (strncmp("Infinity", v, 8) == 0) {
+          rv = spg_pos_inf;
+        } else if (strncmp("-Infinity", v, 9) == 0) {
+          rv = spg_neg_inf;
+        } else {
+          rv = rb_float_new(rb_str_to_dbl(rb_str_new(v, len), Qfalse));
+        }
+        break;
+      case 790: /* numeric */
+      case 1700:
+        rv = rb_funcall(spg_BigDecimal, spg_id_new, 1, rb_str_new(v, len));
+        break;
+      case 1082: /* date */
+        rv = rb_str_new(v, len);
+        rv = spg_date(StringValuePtr(rv));
+        break;
+      case 1083: /* time */
+      case 1266:
+        rv = rb_str_new(v, len);
+        rv = spg_time(StringValuePtr(rv));
+        break;
+      case 1114: /* timestamp */
+      case 1184:
+        rv = rb_str_new(v, len);
+        rv = spg_timestamp(StringValuePtr(rv), self);
+        break;
+      case 18: /* char */
+      case 25: /* text */
+      case 1043: /* varchar*/
+        rv = rb_tainted_str_new(v, len);
+#ifdef SPG_ENCODING
+        rb_enc_associate_index(rv, enc_index);
+#endif
+        break;
+      default:
+        rv = rb_tainted_str_new(v, len);
+#ifdef SPG_ENCODING
+        rb_enc_associate_index(rv, enc_index);
+#endif
+        if (colconvert[j] != Qnil) {
+          rv = rb_funcall(colconvert[j], spg_id_call, 1, rv); 
+        }
+    }
+  }
+  return rv;
+}
+
+static int spg_row_processor(PGresult *res, const PGdataValue *columns, const char **errmsgp, void *param) {
+  long nfields;
+  struct spg_row_proc_info *info;
+  info = (struct spg_row_proc_info *)param;
+  VALUE *colsyms = info->colsyms;
+  VALUE *colconvert = info->colconvert;
+  VALUE self = info->dataset;
+
+  switch (PQresultStatus(res))
+  {
+    case PGRES_TUPLES_OK:
+    case PGRES_COPY_OUT:
+    case PGRES_COPY_IN:
+#ifdef HAVE_CONST_PGRES_COPY_BOTH
+    case PGRES_COPY_BOTH:
+#endif
+    case PGRES_EMPTY_QUERY:
+    case PGRES_COMMAND_OK:
+      break;
+    case PGRES_BAD_RESPONSE:
+    case PGRES_FATAL_ERROR:
+    case PGRES_NONFATAL_ERROR:
+      rb_raise(spg_PGError, "error while streaming results");
+    default:
+      rb_raise(spg_PGError, "unexpected result status while streaming results");
+  }
+
+  nfields = PQnfields(res);
+  if(columns == NULL) {
+    spg_set_column_info(self, res, colsyms, colconvert);
+    rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
+  } else {
+    long j;
+    VALUE h, m;
+    h = rb_hash_new();
+
+    for(j=0; j<nfields; j++) {
+      rb_hash_aset(h, colsyms[j], spg__rp_value(self, res, columns, j, colconvert
+#ifdef SPG_ENCODING
+                   , info->enc_index
+#endif
+      ));
+    }
+
+    /* optimize_model_load used, return model instance */
+    if ((m = info->model)) {
+      m = rb_obj_alloc(m);
+      rb_ivar_set(m, spg_id_values, h);
+      h = m;
+    }
+
+    rb_funcall(info->block, spg_id_call, 1, h);
+  }
+  return 1;
+}
+
+static VALUE spg_unset_row_processor(VALUE rconn) {
+  PGconn *conn;
+  Data_Get_Struct(rconn, PGconn, conn);
+  if ((PQskipResult(conn)) != NULL) {
+    /* Results remaining when row processor finished,
+     * either because an exception was raised or the iterator
+     * exited early, so skip all remaining rows. */
+    while(PQgetResult(conn) != NULL) {
+      /* Use a separate while loop as PQgetResult is faster than
+       * PQskipResult. */
+    }
+  }
+  PQsetRowProcessor(conn, NULL, NULL);
+  return Qnil;
+}
+
+static VALUE spg_with_row_processor(VALUE self, VALUE rconn, VALUE dataset, VALUE block) {
+  struct spg_row_proc_info info;
+  PGconn *conn;
+  Data_Get_Struct(rconn, PGconn, conn);
+  bzero(&info, sizeof(info));
+
+  info.dataset = dataset;
+  info.block = block;
+  info.model = 0;
+#if SPG_ENCODING
+  info.enc_index = enc_get_index(rconn);
+#endif
+
+  /* Abuse local variable, detect if optimize_model_load used */
+  block = rb_funcall(dataset, spg_id_opts, 0);
+  if (rb_type(block) == T_HASH && rb_hash_aref(block, spg_sym__sequel_pg_type) == spg_sym_model) {
+    block = rb_hash_aref(block, spg_sym__sequel_pg_value);
+    if (rb_type(block) == T_CLASS) {
+      info.model = block;
+    }
+  }
+
+  PQsetRowProcessor(conn, spg_row_processor, (void*)&info);
+  rb_ensure(rb_yield, Qnil, spg_unset_row_processor, rconn);
+  return Qnil;
+}
+#endif
+
 void Init_sequel_pg(void) {
   VALUE c, spg_Postgres;
   ID cg;
@@ -725,6 +941,7 @@ void Init_sequel_pg(void) {
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
   spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
+  spg_PGError = rb_funcall(rb_cObject, cg, 1, rb_str_new2("PGError"));
 
   spg_nan = rb_eval_string("0.0/0.0");
   spg_pos_inf = rb_eval_string("1.0/0.0");
@@ -748,6 +965,13 @@ void Init_sequel_pg(void) {
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
+
+  rb_define_singleton_method(spg_Postgres, "supports_streaming?", spg_supports_streaming_p, 0);
+
+#if HAVE_PQSETROWPROCESSOR
+  c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Database"));
+  rb_define_private_method(c, "with_row_processor", spg_with_row_processor, 3);
+#endif
 
   rb_require("sequel_pg/sequel_pg");
 }
