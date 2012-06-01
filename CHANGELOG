@@ -1,4 +1,4 @@
-=== HEAD
+=== 1.4.0 (2012-06-01)
 
 * Add support for streaming on PostgreSQL 9.2 using PQsetRowProcessor (jeremyevans)
 
