@@ -114,6 +114,115 @@ static int enc_get_index(VALUE val)
 }
 #endif
 
+static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, char *word, VALUE converter)
+{
+  int word_index = 0;
+
+  /* The current character in the input string. */
+  char c;
+
+  /*  0: Currently outside a quoted string, current word never quoted
+   *  1: Currently inside a quoted string
+   * -1: Currently outside a quoted string, current word previously quoted */
+  int openQuote = 0;
+
+  /* Inside quoted input means the next character should be treated literally,
+   * instead of being treated as a metacharacter.
+   * Outside of quoted input, means that the word shouldn't be pushed to the array,
+   * used when the last entry was a subarray (which adds to the array itself). */
+  int escapeNext = 0;
+
+  VALUE array = rb_ary_new();
+
+  /* Special case the empty array, so it doesn't need to be handled manually inside
+   * the loop. */
+  if(((*index) < array_string_length) && c_pg_array_string[(*index)] == '}') 
+  {
+    return array;
+  }
+
+  for(;(*index) < array_string_length; ++(*index))
+  {
+    c = c_pg_array_string[*index];
+    if(openQuote < 1)
+    {
+      if(c == ',' || c == '}')
+      {
+        if(!escapeNext)
+        {
+          if(openQuote == 0 && word_index == 4 && !strncmp(word, "NULL", word_index))
+          {
+            rb_ary_push(array, Qnil);
+          }
+          else if (RTEST(converter))
+          {
+            rb_ary_push(array, rb_funcall(converter, spg_id_call, 1, rb_str_new(word, word_index)));
+          }
+          else
+          {
+            rb_ary_push(array, rb_str_new(word, word_index));
+          }
+        }
+        if(c == '}')
+        {
+          return array;
+        }
+        escapeNext = 0;
+        openQuote = 0;
+        word_index = 0;
+      }
+      else if(c == '"')
+      {
+        openQuote = 1;
+      }
+      else if(c == '{')
+      {
+        (*index)++;
+        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, word, converter));
+        escapeNext = 1;
+      }
+      else
+      {
+        word[word_index] = c;
+        word_index++;
+      }
+    }
+    else if (escapeNext) {
+      word[word_index] = c;
+      word_index++;
+      escapeNext = 0;
+    }
+    else if (c == '\\')
+    {
+      escapeNext = 1;
+    }
+    else if (c == '"')
+    {
+      openQuote = -1;
+    }
+    else
+    {
+      word[word_index] = c;
+      word_index++;
+    }
+  }
+
+  return array;
+}
+
+static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) {
+
+  /* convert to c-string, create additional ruby string buffer of
+   * the same length, as that will be the worst case. */
+  char *c_pg_array_string = StringValueCStr(pg_array_string);
+  int array_string_length = RSTRING_LEN(pg_array_string);
+  VALUE buf = rb_str_buf_new(array_string_length);
+  char *word = RSTRING_PTR(buf);
+  int index = 1;
+
+  return read_array(&index, c_pg_array_string, array_string_length, word, converter);
+}
+
 static VALUE spg_time(const char *s) {
   VALUE now;
   int hour, minute, second, tokens;
@@ -972,6 +1081,8 @@ void Init_sequel_pg(void) {
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Database"));
   rb_define_private_method(c, "with_row_processor", spg_with_row_processor, 3);
 #endif
+
+  rb_define_singleton_method(spg_Postgres, "parse_pg_array", parse_pg_array, 2);
 
   rb_require("sequel_pg/sequel_pg");
 }

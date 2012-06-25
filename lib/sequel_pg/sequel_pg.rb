@@ -83,3 +83,17 @@ class Sequel::Postgres::Dataset
     (rp = row_proc).is_a?(Class) && (rp < Sequel::Model) && optimize_model_load && !opts[:use_cursor] && !opts[:graph]
   end
 end
+
+if defined?(Sequel::Postgres::PGArray)
+  # pg_array extension previously loaded
+
+  class Sequel::Postgres::PGArray::Creator
+    # Override Creator to use sequel_pg's C-based parser instead of the pure ruby parser.
+    def call(string)
+      Sequel::Postgres::PGArray.new(Sequel::Postgres.parse_pg_array(string, @converter), @type)
+    end
+  end
+
+  # Remove the pure-ruby parser, no longer needed.
+  Sequel::Postgres::PGArray.send(:remove_const, :Parser)
+end
