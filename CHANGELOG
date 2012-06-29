@@ -1,4 +1,4 @@
-=== HEAD
+=== 1.5.0 (2012-07-02)
 
 * Add C-based PostgreSQL array parser, for major speedup in parsing arrays (Dan McClain, jeremyevans)
 
