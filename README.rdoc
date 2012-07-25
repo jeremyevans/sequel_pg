@@ -149,16 +149,11 @@ sequel_pg has been tested on the following:
 
 * gcc (3.3.5, 4.2.1, 4.4.3)
 
-=== Ruby Versions
+=== Supported Ruby Versions
 
-* jruby cext branch (compiles but untested and unusable, as pg itself
-  doesn't compile yet)
-* rbx head
-* ruby 1.8.6
 * ruby 1.8.7
-* ruby 1.9.1
 * ruby 1.9.2
-* ruby head
+* ruby 1.9.3
 
 If your platform, compiler version, or ruby version is not listed
 above, please test and send me a report including:
