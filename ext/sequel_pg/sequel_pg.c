@@ -133,6 +133,7 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
   int escapeNext = 0;
 
   VALUE array = rb_ary_new();
+  RB_GC_GUARD(array);
 
   /* Special case the empty array, so it doesn't need to be handled manually inside
    * the loop. */
@@ -156,7 +157,9 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
           }
           else if (RTEST(converter))
           {
-            rb_ary_push(array, rb_funcall(converter, spg_id_call, 1, rb_str_new(word, word_index)));
+            VALUE rword = rb_str_new(word, word_index);
+            RB_GC_GUARD(rword);
+            rb_ary_push(array, rb_funcall(converter, spg_id_call, 1, rword));
           }
           else
           {
@@ -217,6 +220,7 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
   char *c_pg_array_string = StringValueCStr(pg_array_string);
   int array_string_length = RSTRING_LEN(pg_array_string);
   VALUE buf = rb_str_buf_new(array_string_length);
+  RB_GC_GUARD(buf);
   char *word = RSTRING_PTR(buf);
   int index = 1;
 
