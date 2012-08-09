@@ -1,3 +1,7 @@
+=== HEAD
+
+* Replace PQsetRowProcessor streaming with PQsetSingleRowMode streaming introduced in PostgreSQL 9.2beta3 (jeremyevans)
+
 === 1.5.1 (2012-08-02)
 
 * Sprinkle some RB_GC_GUARD to work around segfaults in the PostgreSQL array parser (jeremyevans)

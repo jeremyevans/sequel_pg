@@ -10,7 +10,7 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.email = "code@jeremyevans.net"
   s.homepage = "http://github.com/jeremyevans/sequel_pg"
   s.required_ruby_version = ">= 1.8.7"
-  s.files = %w(MIT-LICENSE CHANGELOG README.rdoc Rakefile ext/sequel_pg/extconf.rb ext/sequel_pg/sequel_pg.c lib/sequel_pg/sequel_pg.rb lib/sequel_pg/streaming.rb)
+  s.files = %w(MIT-LICENSE CHANGELOG README.rdoc Rakefile ext/sequel_pg/extconf.rb ext/sequel_pg/sequel_pg.c lib/sequel_pg/sequel_pg.rb lib/sequel/extensions/pg_streaming.rb)
   s.extensions << 'ext/sequel_pg/extconf.rb'
   s.add_dependency("pg", [">= 0.8.0"])
   s.add_dependency("sequel", [">= 3.36.0"])
