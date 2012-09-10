@@ -65,7 +65,7 @@ enable the model optimization via:
 
 == Streaming
 
-If you are using PostgreSQL 9.2 or higher on the client, then sequel_pg
+If you are using PostgreSQL 9.2beta3 or higher on the client, then sequel_pg
 should enable streaming support.  This allows you to stream returned
 rows one at a time, instead of collecting the entire result set in
 memory (which is how PostgreSQL works by default).  You can check
@@ -76,8 +76,7 @@ if streaming is supported by:
 If streaming is supported, you can load the streaming support into the
 database:
 
-  require 'sequel_pg/streaming'
-  DB.extend Sequel::Postgres::Streaming
+  DB.extension(:pg_streaming)
 
 Then you can call the Dataset#stream method to have the dataset use
 the streaming support:
@@ -87,7 +86,7 @@ the streaming support:
 If you want to enable streaming for all of a database's datasets, you
 can do the following:
 
-  DB.extend_datasets Sequel::Postgres::Streaming::AllQueries
+  DB.stream_all_queries = true
 
 == Installing the gem
 
