@@ -88,6 +88,10 @@ can do the following:
 
   DB.stream_all_queries = true
 
+Note that pg 0.14.1+ is required for streaming to work.  This is not
+required by the gem, as it is only a requirement for streaming, not
+for general use.
+
 == Installing the gem
 
   gem install sequel_pg
