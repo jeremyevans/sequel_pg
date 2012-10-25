@@ -1,3 +1,7 @@
+=== 1.6.1 (2012-10-25)
+
+* Make PostgreSQL array parser handle string encodings correctly on ruby 1.9 (jeremyevans)
+
 === 1.6.0 (2012-09-04)
 
 * Replace PQsetRowProcessor streaming with PQsetSingleRowMode streaming introduced in PostgreSQL 9.2beta3 (jeremyevans)

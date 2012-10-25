@@ -120,7 +120,11 @@ static int enc_get_index(VALUE val)
 }
 #endif
 
-static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, char *word, VALUE converter)
+static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, char *word, VALUE converter
+#ifdef SPG_ENCODING
+, int enc_index
+#endif
+)
 {
   int word_index = 0;
 
@@ -161,15 +165,20 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
           {
             rb_ary_push(array, Qnil);
           }
-          else if (RTEST(converter))
+          else 
           {
-            VALUE rword = rb_str_new(word, word_index);
+            VALUE rword = rb_tainted_str_new(word, word_index);
             RB_GC_GUARD(rword);
-            rb_ary_push(array, rb_funcall(converter, spg_id_call, 1, rword));
-          }
-          else
-          {
-            rb_ary_push(array, rb_str_new(word, word_index));
+
+#ifdef SPG_ENCODING
+            rb_enc_associate_index(rword, enc_index);
+#endif
+
+            if (RTEST(converter)) {
+              rword = rb_funcall(converter, spg_id_call, 1, rword);
+            }
+
+            rb_ary_push(array, rword);
           }
         }
         if(c == '}')
@@ -187,7 +196,11 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
       else if(c == '{')
       {
         (*index)++;
-        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, word, converter));
+        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, word, converter
+#ifdef SPG_ENCODING
+, enc_index
+#endif
+        ));
         escapeNext = 1;
       }
       else
@@ -230,7 +243,11 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
   char *word = RSTRING_PTR(buf);
   int index = 1;
 
-  return read_array(&index, c_pg_array_string, array_string_length, word, converter);
+  return read_array(&index, c_pg_array_string, array_string_length, word, converter
+#ifdef SPG_ENCODING
+, enc_get_index(pg_array_string)
+#endif
+  );
 }
 
 static VALUE spg_time(const char *s) {
