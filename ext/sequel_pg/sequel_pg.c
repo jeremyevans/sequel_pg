@@ -1009,7 +1009,7 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_BigDecimal);
   rb_global_variable(&spg_Date);
   rb_global_variable(&spg_SQLTime);
-  rb_global_variable(&spg_Postgres);
+  rb_global_variable(&spg_PGError);
   rb_global_variable(&spg_nan);
   rb_global_variable(&spg_pos_inf);
   rb_global_variable(&spg_neg_inf);
