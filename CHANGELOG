@@ -1,3 +1,7 @@
+=== 1.6.2 (2012-11-16)
+
+* Make sequel_pg runnable on rubinius by fixing bad rb_global_variable call (dbussink)
+
 === 1.6.1 (2012-10-25)
 
 * Make PostgreSQL array parser handle string encodings correctly on ruby 1.9 (jeremyevans)

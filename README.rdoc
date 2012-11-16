@@ -157,6 +157,8 @@ sequel_pg has been tested on the following:
 * ruby 1.8.7
 * ruby 1.9.2
 * ruby 1.9.3
+* ruby 2.0.0preview1
+* rbx 1.2.4
 
 If your platform, compiler version, or ruby version is not listed
 above, please test and send me a report including:
