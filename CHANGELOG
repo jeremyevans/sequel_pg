@@ -1,3 +1,7 @@
+=== 1.6.3 (2012-11-30)
+
+* Make streaming support not swallow errors when rows are not retrieved (jeremyevans)
+
 === 1.6.2 (2012-11-16)
 
 * Make sequel_pg runnable on rubinius by fixing bad rb_global_variable call (dbussink)

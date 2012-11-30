@@ -932,10 +932,29 @@ static VALUE spg__yield_each_row(VALUE self) {
 static VALUE spg__flush_results(VALUE rconn) {
   PGconn *conn;
   PGresult *res;
+  VALUE error = 0;
   Data_Get_Struct(rconn, PGconn, conn);
 
   while ((res = PQgetResult(conn)) != NULL) {
+    if (!error) {
+      switch (PQresultStatus(res))
+      {
+        case PGRES_BAD_RESPONSE:
+        case PGRES_FATAL_ERROR:
+        case PGRES_NONFATAL_ERROR:
+          error = rb_str_new2(PQresultErrorMessage(res));
+          break;
+        default:
+          break;
+      }
+    }
     PQclear(res);
+  }
+  
+  if (error) {
+    VALUE exception = rb_exc_new3(spg_PGError, error);
+    rb_iv_set(exception, "@connection", rconn);
+    rb_exc_raise(exception);
   }
 
   return rconn;
