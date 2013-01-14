@@ -1,10 +1,14 @@
+=== 1.6.4 (2013-01-14)
+
+* Remove type conversion of int2vector and money types on PostgreSQL, since previous conversions were wrong (jeremyevans) (#8)
+
 === 1.6.3 (2012-11-30)
 
 * Make streaming support not swallow errors when rows are not retrieved (jeremyevans)
 
 === 1.6.2 (2012-11-16)
 
-* Make sequel_pg runnable on rubinius by fixing bad rb_global_variable call (dbussink)
+* Make sequel_pg runnable on rubinius by fixing bad rb_global_variable call (dbussink) (#7)
 
 === 1.6.1 (2012-10-25)
 
@@ -64,9 +68,9 @@
 
 * Build the Windows gem against PostgreSQL 9.0.1 to support the new default bytea serialization format (jeremyevans)
 
-* Allow use of Sequel::Postgres::PG_TYPES to add custom conversion support for types not handled by default (funny-falcon)
+* Allow use of Sequel::Postgres::PG_TYPES to add custom conversion support for types not handled by default (funny-falcon) (#2)
 
-* Fix handling of timestamps with fractional seconds and offsets (funny-falcon)
+* Fix handling of timestamps with fractional seconds and offsets (funny-falcon) (#1)
 
 === 1.0.1 (2010-09-12)
 

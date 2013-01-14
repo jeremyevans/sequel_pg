@@ -454,7 +454,6 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         break;
       case 20: /* integer */
       case 21:
-      case 22:
       case 23:
       case 26:
         rv = rb_cstr2inum(v, 10);
@@ -471,8 +470,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
           rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
         }
         break;
-      case 790: /* numeric */
-      case 1700:
+      case 1700: /* numeric */
         rv = rb_funcall(spg_BigDecimal, spg_id_new, 1, rb_str_new(v, PQgetlength(res, i, j)));
         break;
       case 1082: /* date */
