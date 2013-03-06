@@ -1,6 +1,6 @@
 SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.name = 'sequel_pg'
-  s.version = '1.6.4'
+  s.version = '1.6.5'
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = false
   s.extra_rdoc_files = ["README.rdoc", "CHANGELOG", "MIT-LICENSE"]

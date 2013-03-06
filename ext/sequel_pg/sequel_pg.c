@@ -268,17 +268,7 @@ static VALUE spg_time(const char *s) {
   return rb_funcall(spg_SQLTime, spg_id_local, 7, rb_funcall(now, spg_id_year, 0), rb_funcall(now, spg_id_month, 0), rb_funcall(now, spg_id_day, 0), INT2NUM(hour), INT2NUM(minute), INT2NUM(second), INT2NUM(usec));
 }
 
-static VALUE spg_date(const char *s) {
-  int year, month, day;
-
-  if(3 != sscanf(s, "%d-%2d-%2d", &year, &month, &day)) {
-    rb_raise(rb_eArgError, "unexpected date format");
-  }
-
-  return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
-}
-
-static VALUE spg_timestamp_error(const char *s, VALUE self) {
+static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_msg) {
   VALUE db;
   db = rb_funcall(self, spg_id_db, 0);
   if(RTEST(rb_funcall(db, spg_id_convert_infinite_timestamps, 0))) {
@@ -286,7 +276,17 @@ static VALUE spg_timestamp_error(const char *s, VALUE self) {
       return rb_funcall(db, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new2(s));
     }
   }
-  rb_raise(rb_eArgError, "unexpected datetime format");
+  rb_raise(rb_eArgError, error_msg);
+}
+
+static VALUE spg_date(const char *s, VALUE self) {
+  int year, month, day;
+
+  if(3 != sscanf(s, "%d-%2d-%2d", &year, &month, &day)) {
+    return spg_timestamp_error(s, self, "unexpected date format");
+  }
+
+  return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
 }
 
 static VALUE spg_timestamp(const char *s, VALUE self) {
@@ -306,7 +306,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
        	&usec_start, &usec, &usec_stop, 
 	&offset_sign, &offset_hour, &offset_minute);
     if(tokens < 7) {
-      return spg_timestamp_error(s, self);
+      return spg_timestamp_error(s, self, "unexpected datetime format");
     }
     usec *= (int) pow(10, (6 - (usec_stop - usec_start)));
   } else {
@@ -318,7 +318,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
       min = 0;
       sec = 0;
     } else if (tokens < 6) {
-      return spg_timestamp_error(s, self);
+      return spg_timestamp_error(s, self, "unexpected datetime format");
     }
     usec = 0;
   }
@@ -474,7 +474,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         rv = rb_funcall(spg_BigDecimal, spg_id_new, 1, rb_str_new(v, PQgetlength(res, i, j)));
         break;
       case 1082: /* date */
-        rv = spg_date(v);
+        rv = spg_date(v, self);
         break;
       case 1083: /* time */
       case 1266:
