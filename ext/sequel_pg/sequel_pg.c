@@ -276,7 +276,7 @@ static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_ms
       return rb_funcall(db, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new2(s));
     }
   }
-  rb_raise(rb_eArgError, error_msg);
+  rb_raise(rb_eArgError, "%s", error_msg);
 }
 
 static VALUE spg_date(const char *s, VALUE self) {

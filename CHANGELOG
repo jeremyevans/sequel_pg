@@ -1,3 +1,7 @@
+=== HEAD
+
+* Work around format-security false positive (jeremyevans) (#9)
+
 === 1.6.5 (2013-03-06)
 
 * Handle infinite dates using Database#convert_infinite_timestamps (jeremyevans)
