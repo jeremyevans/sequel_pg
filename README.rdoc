@@ -157,7 +157,7 @@ sequel_pg has been tested on the following:
 * ruby 1.8.7
 * ruby 1.9.2
 * ruby 1.9.3
-* ruby 2.0.0preview1
+* ruby 2.0.0
 * rbx 1.2.4
 
 If your platform, compiler version, or ruby version is not listed
@@ -178,10 +178,6 @@ above, please test and send me a report including:
   should be OK.
 * Adding your own type conversion procs only has an effect if those
   types are not handled by default.
-* The named_timezones plugin does not integrate with sequel_pg, since
-  sequel_pg does it's own timestamp conversions. The :local and :utc
-  settings for database_timestamp and application_timestamp do work,
-  as does setting the datetime_class to DateTime.
 * You do not need to require the library, the sequel postgres adapter
   will require it automatically.  If you are using bundler, you
   should add it to your Gemfile like so:

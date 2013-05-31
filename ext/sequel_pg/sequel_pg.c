@@ -83,6 +83,7 @@ static ID spg_id_day;
 static ID spg_id_output_identifier;
 static ID spg_id_datetime_class;
 static ID spg_id_application_timezone;
+static ID spg_id_to_application_timestamp;
 static ID spg_id_timezone;
 static ID spg_id_op_plus;
 static ID spg_id_utc;
@@ -290,7 +291,7 @@ static VALUE spg_date(const char *s, VALUE self) {
 }
 
 static VALUE spg_timestamp(const char *s, VALUE self) {
-  VALUE dtc, dt, rtz;
+  VALUE dtc, dt, rtz, db;
   int tz = SPG_NO_TZ;
   int year, month, day, hour, min, sec, usec, tokens, utc_offset;
   int usec_start, usec_stop;
@@ -299,6 +300,18 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
   int offset_minute = 0;
   int offset_seconds = 0;
   double offset_fraction = 0.0;
+
+  db = rb_funcall(self, spg_id_db, 0);
+  rtz = rb_funcall(db, spg_id_timezone, 0);
+  if (rtz != Qnil) {
+    if (rtz == spg_sym_local) {
+      tz += SPG_DB_LOCAL;
+    } else if (rtz == spg_sym_utc) {
+      tz += SPG_DB_UTC;
+    } else {
+      return rb_funcall(db, spg_id_to_application_timestamp, 1, rb_str_new2(s)); 
+    }
+  }
 
   if (0 != strchr(s, '.')) {
     tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%n%d%n%c%02d:%02d", 
@@ -330,12 +343,6 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
 
   /* Get values of datetime_class, database_timezone, and application_timezone */
   dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
-  rtz = rb_funcall(rb_funcall(self, spg_id_db, 0), spg_id_timezone, 0);
-  if (rtz == spg_sym_local) {
-    tz += SPG_DB_LOCAL;
-  } else if (rtz == spg_sym_utc) {
-    tz += SPG_DB_UTC;
-  }
   rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
   if (rtz == spg_sym_local) {
     tz += SPG_APP_LOCAL;
@@ -977,6 +984,7 @@ void Init_sequel_pg(void) {
   spg_id_output_identifier = rb_intern("output_identifier");
   spg_id_datetime_class = rb_intern("datetime_class");
   spg_id_application_timezone = rb_intern("application_timezone");
+  spg_id_to_application_timestamp = rb_intern("to_application_timestamp");
   spg_id_timezone = rb_intern("timezone");
   spg_id_op_plus = rb_intern("+");
   spg_id_utc = rb_intern("utc");
