@@ -1,3 +1,7 @@
+=== 1.6.7 (2013-06-06)
+
+* Correctly handle fractional seconds in the time type (jeremyevans)
+
 === 1.6.6 (2013-05-31)
 
 * Work correctly when using the named_timezones extension (jeremyevans)

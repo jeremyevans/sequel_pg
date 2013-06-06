@@ -253,12 +253,17 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
 
 static VALUE spg_time(const char *s) {
   VALUE now;
-  int hour, minute, second, tokens;
+  int hour, minute, second, tokens, i;
   char subsec[7];
   int usec = 0;
 
-  tokens = sscanf(s, "%2d:%2d:%2d.%s", &hour, &minute, &second, subsec);
+  tokens = sscanf(s, "%2d:%2d:%2d.%6s", &hour, &minute, &second, subsec);
   if(tokens == 4) {
+    for(i=0; i<6; i++) {
+      if(subsec[i] == '-') {
+        subsec[i] = '\0';
+      }
+    }
     usec = atoi(subsec);
     usec *= (int) pow(10, (6 - strlen(subsec)));
   } else if(tokens < 3) {
