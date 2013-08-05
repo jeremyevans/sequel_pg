@@ -1,3 +1,7 @@
+=== 1.6.8 (2013-08-05)
+
+* Allow overriding maximum allowed columns in a result set via -- --with-cflags=\"-DSPG_MAX_FIELDS=1600\" (jeremyevans) (#12)
+
 === 1.6.7 (2013-06-06)
 
 * Correctly handle fractional seconds in the time type (jeremyevans)
