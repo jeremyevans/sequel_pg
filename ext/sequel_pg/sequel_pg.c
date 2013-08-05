@@ -41,17 +41,6 @@
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 
-struct spg_row_proc_info {
-  VALUE dataset;
-  VALUE block;
-  VALUE model;
-  VALUE colsyms[SPG_MAX_FIELDS];
-  VALUE colconvert[SPG_MAX_FIELDS];
-#if SPG_ENCODING
-  int enc_index;
-#endif
-};
-
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
 static VALUE spg_BigDecimal;
