@@ -12,7 +12,9 @@
 #define ENC_INDEX
 #endif
 
-#define SPG_MAX_FIELDS 1600
+#ifndef SPG_MAX_FIELDS
+#define SPG_MAX_FIELDS 256
+#endif
 #define SPG_MICROSECONDS_PER_DAY_LL 86400000000ULL
 #define SPG_MICROSECONDS_PER_DAY 86400000000.0
 #define SPG_MINUTES_PER_DAY 1440.0
@@ -40,17 +42,6 @@
 #define SPG_YIELD_MKV_HASH_GROUPS 11
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
-
-struct spg_row_proc_info {
-  VALUE dataset;
-  VALUE block;
-  VALUE model;
-  VALUE colsyms[SPG_MAX_FIELDS];
-  VALUE colconvert[SPG_MAX_FIELDS];
-#if SPG_ENCODING
-  int enc_index;
-#endif
-};
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
