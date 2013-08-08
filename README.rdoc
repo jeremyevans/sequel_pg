@@ -101,6 +101,10 @@ compiler toolchain.  Since few Windows users have a working compiler
 toolchain, a windows binary gem is available that works on both 1.8
 and 1.9.
 
+Note that if your database has more than  256 columns you can override 
+the default maximum columns value like this:
+  gem install sequel_pg -- --with-cflags=\"-DSPG_MAX_FIELDS=1600\"
+
 == Running the specs
 
 sequel_pg doesn't ship with it's own specs.  It's designed to
