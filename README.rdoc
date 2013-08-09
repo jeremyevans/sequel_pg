@@ -101,16 +101,10 @@ compiler toolchain.  Since few Windows users have a working compiler
 toolchain, a windows binary gem is available that works on both 1.8
 and 1.9.
 
-<<<<<<< HEAD
 Note that by default up to 256 columns are supported. If your table has
 more than 256 columns you can change this at install time like this:
 
    gem install sequel_pg -- --with-cflags=\"-DSPG_MAX_FIELDS=512\"
-=======
-Note that if your database has more than  256 columns you can override 
-the default maximum columns value like this:
-  gem install sequel_pg -- --with-cflags=\"-DSPG_MAX_FIELDS=1600\"
->>>>>>> 7b58fd1e4b68494347563f036b892f2c518f41f4
 
 == Running the specs
 
