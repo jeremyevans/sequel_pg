@@ -1,6 +1,6 @@
 SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.name = 'sequel_pg'
-  s.version = '1.6.8'
+  s.version = '1.6.9'
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = false
   s.extra_rdoc_files = ["README.rdoc", "CHANGELOG", "MIT-LICENSE"]
@@ -20,5 +20,9 @@ sequel_pg overwrites the inner loop of the Sequel postgres
 adapter row fetching code with a C version.  The C version
 is significantly faster (2-6x) than the pure ruby version
 that Sequel uses by default.
+
+sequel_pg also offers optimized versions of some dataset
+methods, as well as adds support for using PostgreSQL
+streaming.
 END
 end

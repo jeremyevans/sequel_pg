@@ -103,6 +103,11 @@ module Sequel::Postgres::Streaming
       end
     end
 
+    # Use streaming to implement paging.
+    def paged_each(opts=OPTS, &block)
+      stream.each(&block)
+    end
+
     # Return a clone of the dataset that will use streaming to load
     # rows.
     def stream
