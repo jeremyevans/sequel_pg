@@ -309,6 +309,17 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
     }
   }
 
+  rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
+  if (rtz != Qnil) {
+    if (rtz == spg_sym_local) {
+      tz += SPG_APP_LOCAL;
+    } else if (rtz == spg_sym_utc) {
+      tz += SPG_APP_UTC;
+    } else {
+      return rb_funcall(db, spg_id_to_application_timestamp, 1, rb_str_new2(s)); 
+    }
+  }
+
   if (0 != strchr(s, '.')) {
     tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%n%d%n%c%02d:%02d", 
 	&year, &month, &day, &hour, &min, &sec,
@@ -337,14 +348,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
     offset_minute *= -1;
   }
 
-  /* Get values of datetime_class, database_timezone, and application_timezone */
   dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
-  rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
-  if (rtz == spg_sym_local) {
-    tz += SPG_APP_LOCAL;
-  } else if (rtz == spg_sym_utc) {
-    tz += SPG_APP_UTC;
-  }
 
   if (dtc == rb_cTime) {
     if (offset_sign) {

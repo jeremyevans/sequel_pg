@@ -1,3 +1,7 @@
+=== 1.6.10 (2014-07-11)
+
+* Work correctly when the database timezone is not a named timezone but the application timezone is (jeremyevans)
+
 === 1.6.9 (2014-03-05)
 
 * When using the streaming extension, automatically use streaming to implement paging in Dataset#paged_each (jeremyevans)
