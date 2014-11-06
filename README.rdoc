@@ -96,11 +96,6 @@ for general use.
 
   gem install sequel_pg
 
-The standard gem requires compiling from source, so you need a working
-compiler toolchain.  Since few Windows users have a working compiler
-toolchain, a windows binary gem is available that works on both 1.8
-and 1.9.
-
 Note that by default sequel_pg only supports result sets with up to
 256 columns. If you will have a result set with more than 256 columns,
 you should modify the maximum supported number of columns via:
@@ -111,6 +106,10 @@ Make sure the pg_config binary is in your PATH so the installation
 can find the PostgreSQL shared library and header files.  Alternatively,
 you can use the POSTGRES_LIB and POSTGRES_INCLUDE environment
 variables to specify the shared library and header directories.
+
+While previous versions of this gem supported Windows, the current
+version does not, due to the need to call C functions defined
+in the pg gem.
 
 == Running the specs
 
@@ -153,30 +152,11 @@ requirements:
 
 sequel_pg has been tested on the following:
 
-=== Operating Systems/Platforms
-
-* Linux (i386)
-* OpenBSD (amd64, i386)
-* Windows XP (i386)
-
-=== Compiler Versions
-
-* gcc (3.3.5, 4.2.1, 4.4.3)
-
-=== Supported Ruby Versions
-
 * ruby 1.8.7
-* ruby 1.9.2
 * ruby 1.9.3
 * ruby 2.0.0
-* rbx 1.2.4
-
-If your platform, compiler version, or ruby version is not listed
-above, please test and send me a report including:
-
-  * Your operating system and platform (e.g. i386, x86_64/amd64)
-  * Your compiler
-  * Your ruby version
+* ruby 2.1.4
+* rbx 2.2.9
 
 == Known Issues
 
