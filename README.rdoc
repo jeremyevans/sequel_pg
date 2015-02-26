@@ -175,6 +175,14 @@ sequel_pg has been tested on the following:
 
     gem 'sequel_pg', :require=>'sequel'
 
+* sequel_pg currently calls functions defined in the pg gem, which
+  does not work on Windows and does not work in some unix-like
+  operating systems that disallow undefined functions in shared
+  libraries.  If <tt>RbConfig::Config['LDFLAGS']</tt> contains
+  <tt>-Wl,--no-undefined</tt>, you'll probably have issues installing
+  sequel_pg.  You should probably fix <tt>RbConfig::Config['LDFLAGS']</tt>
+  in that case.
+
 == Author
 
 Jeremy Evans <code@jeremyevans.net>
