@@ -51,8 +51,8 @@ PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
 
 /* Normalize access to data objects for both old and new versions of pg gem */
-#define GetPGconn(_val, _var) if (unwrap_structs) {_var = pg_get_pgconn(_val);} else {Data_Get_Struct(_val, PGconn, _var);}
-#define GetPGresult(_val, _var) if (unwrap_structs) {_var = pgresult_get(_val);} else {Data_Get_Struct(_val, PGresult, _var);}
+#define GetPGconn(_val, _var) if (unwrap_structs) {Check_Type(_val, T_DATA); _var = pg_get_pgconn(_val);} else {Data_Get_Struct(_val, PGconn, _var);}
+#define GetPGresult(_val, _var) if (unwrap_structs) {Check_Type(_val, T_DATA); _var = pgresult_get(_val);} else {Data_Get_Struct(_val, PGresult, _var);}
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
@@ -620,12 +620,16 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   VALUE pg_value;
   char type = SPG_YIELD_NORMAL;
 
+  if (!RTEST(rres)) {
+    return self;
+  }
+  GetPGresult(rres, res);
+
 #ifdef SPG_ENCODING
   int enc_index;
   enc_index = enc_get_index(rres);
 #endif
 
-  GetPGresult(rres, res);
   ntuples = PQntuples(res);
   nfields = PQnfields(res);
   if (nfields > SPG_MAX_FIELDS) {
