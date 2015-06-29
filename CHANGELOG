@@ -1,3 +1,7 @@
+=== HEAD
+
+Remove handling of int2vector type (jeremyevans)
+
 === 1.6.12 (2015-03-23)
 
 * Fix segfault when Dataset#yield_hash_rows is passed a nil value when using ruby pg 0.18+ (jeremyevans) (#19)

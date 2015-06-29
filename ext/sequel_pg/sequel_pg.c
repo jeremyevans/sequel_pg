@@ -579,7 +579,6 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
       case 17:
       case 20:
       case 21:
-      case 22:
       case 23:
       case 26:
       case 700:
