@@ -1,6 +1,8 @@
-=== HEAD
+=== 1.6.13 (2015-06-29) 
 
-Remove handling of int2vector type (jeremyevans)
+* Fix Dataset#paged_each when called with no arguments (jeremyevans)
+
+* Remove handling of int2vector type (jeremyevans)
 
 === 1.6.12 (2015-03-23)
 
