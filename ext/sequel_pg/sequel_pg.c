@@ -246,6 +246,27 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
   char *word = RSTRING_PTR(buf);
   int index = 1;
 
+  if (array_string_length == 0) {
+    rb_raise(rb_eArgError, "unexpected PostgreSQL array format, empty");
+  }
+
+  switch (c_pg_array_string[0]) {
+    case '[':
+      /* Skip explicit subscripts, scanning until opening array */
+      for(;index < array_string_length && c_pg_array_string[index] != '{'; ++index)
+        /* nothing */;
+
+      if (index >= array_string_length) {
+        rb_raise(rb_eArgError, "unexpected PostgreSQL array format, no {");
+      } else {
+        ++index;
+      }
+    case '{':
+      break;
+    default:
+      rb_raise(rb_eArgError, "unexpected PostgreSQL array format, doesn't start with { or [");
+  }
+
   return read_array(&index, c_pg_array_string, array_string_length, word, converter
 #ifdef SPG_ENCODING
 , enc_get_index(pg_array_string)
