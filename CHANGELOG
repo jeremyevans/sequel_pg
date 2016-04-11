@@ -1,3 +1,7 @@
+=== 1.6.16 (2016-04-11)
+
+* Work with upcoming Sequel 4.34.0 release, and Sequel 4.0+ (jeremyevans) (#22)
+
 === 1.6.15 (2016-04-11)
 
 * Work with upcoming Sequel 4.34.0 release (jeremyevans)
