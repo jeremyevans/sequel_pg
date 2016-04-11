@@ -1,6 +1,6 @@
 SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.name = 'sequel_pg'
-  s.version = '1.6.14'
+  s.version = '1.6.15'
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = false
   s.extra_rdoc_files = ["README.rdoc", "CHANGELOG", "MIT-LICENSE"]
@@ -14,7 +14,7 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.license = 'MIT'
   s.extensions << 'ext/sequel_pg/extconf.rb'
   s.add_dependency("pg", [">= 0.8.0"])
-  s.add_dependency("sequel", [">= 3.39.0"])
+  s.add_dependency("sequel", [">= 4.0.0"])
   s.description = <<END
 sequel_pg overwrites the inner loop of the Sequel postgres
 adapter row fetching code with a C version.  The C version

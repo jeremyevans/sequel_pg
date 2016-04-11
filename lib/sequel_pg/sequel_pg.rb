@@ -32,8 +32,8 @@ class Sequel::Postgres::Dataset
   end
 
   # In the case where both arguments given, use an optimized version.
-  def to_hash(key_column, value_column = nil)
-    if value_column
+  def to_hash(key_column, value_column = nil, opts = Sequel::OPTS)
+    if value_column && !opts[:hash]
       clone(:_sequel_pg_type=>:hash, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
     else
       super
@@ -41,8 +41,8 @@ class Sequel::Postgres::Dataset
   end
 
   # In the case where both arguments given, use an optimized version.
-  def to_hash_groups(key_column, value_column = nil)
-    if value_column
+  def to_hash_groups(key_column, value_column = nil, opts = Sequel::OPTS)
+    if value_column && !opts[:hash]
       clone(:_sequel_pg_type=>:hash_groups, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
     else
       super
