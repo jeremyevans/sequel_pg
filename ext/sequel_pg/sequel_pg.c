@@ -45,6 +45,7 @@
 
 /* Whether the data objects are structs instead of just pointers */
 static int unwrap_structs;
+static int use_columns_method;
 
 /* External functions defined by ruby-pg when data objects are structs */
 PGconn* pg_get_pgconn(VALUE);
@@ -102,6 +103,7 @@ static ID spg_id_opts;
 static ID spg_id_db;
 static ID spg_id_conversion_procs;
 
+static ID spg_id_columns_equal;
 static ID spg_id_columns;
 static ID spg_id_encoding;
 static ID spg_id_values;
@@ -584,6 +586,14 @@ static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
   return pg_columns;
 }
 
+static void spg_set_columns(VALUE self, VALUE cols) {
+  if (use_columns_method) {
+    rb_funcall(self, spg_id_columns_equal, 1, cols);
+  } else {
+    rb_ivar_set(self, spg_id_columns, cols);
+  }
+}
+
 static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE *colconvert) {
   long i;
   long j;
@@ -624,6 +634,7 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
         break;
     }
   }
+  spg_set_columns(self, rb_ary_new4(nfields, colsyms));
 }
 
 static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
@@ -657,8 +668,6 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   }
 
   spg_set_column_info(self, res, colsyms, colconvert);
-
-  rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
 
   opts = rb_funcall(self, spg_id_opts, 0);
   if (rb_type(opts) == T_HASH) {
@@ -941,8 +950,6 @@ static VALUE spg__yield_each_row(VALUE self) {
 
   spg_set_column_info(self, res, colsyms, colconvert);
 
-  rb_ivar_set(self, spg_id_columns, rb_ary_new4(nfields, colsyms));
-
   while (PQntuples(res) != 0) {
     h = rb_hash_new();
     for(j=0; j<nfields; j++) {
@@ -1036,6 +1043,7 @@ void Init_sequel_pg(void) {
 
   spg_id_db = rb_intern("db");
   spg_id_conversion_procs = rb_intern("conversion_procs");
+  spg_id_columns_equal = rb_intern("columns=");
 
   spg_id_columns = rb_intern("@columns");
   spg_id_encoding = rb_intern("@encoding");
@@ -1085,6 +1093,10 @@ void Init_sequel_pg(void) {
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
+
+  if (rb_eval_string("Sequel::Dataset.private_method_defined?(:columns=)") == Qtrue) {
+    use_columns_method = 1;
+  }
 
   rb_define_singleton_method(spg_Postgres, "supports_streaming?", spg_supports_streaming_p, 0);
 
