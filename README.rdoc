@@ -7,7 +7,7 @@ faster (2-6x) than the pure ruby version that Sequel uses by default.
 == Real world difference
 
 The speed up that sequel_pg gives you depends on what you are
-selecting, but it should be noticable whenever many rows are selected.
+selecting, but it should be noticeable whenever many rows are selected.
 Here's an example that shows the difference it makes on a couple of
 models:
 
@@ -48,8 +48,8 @@ with the following plugins that ship with Sequel:
 
 * class_table_inheritance
 * force_encoding
-* serializiation
-* single_table_interitance
+* serialization
+* single_table_inheritance
 * typecast_on_load
 * update_primary_key
 
