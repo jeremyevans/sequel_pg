@@ -1083,7 +1083,7 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_neg_inf);
 
   /* Check for 1.8-1.9.2 stdlib date that needs Rational for usec accuracy */
-  if (rb_eval_string("Date.today.instance_variable_get(:@ajd)") != Qnil) {
+  if (rb_attr_get(rb_eval_string("Date.today"), rb_intern("@ajd")) != Qnil) {
     spg_id_Rational = rb_intern("Rational");
   }
   if (rb_eval_string("defined?(PG::TypeMapAllStrings)") != Qnil) {
@@ -1091,7 +1091,9 @@ void Init_sequel_pg(void) {
   }
 
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
+  rb_undef_method(c, "yield_hash_rows");
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
+  rb_undef_method(c, "fetch_rows_set_cols");
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
 
   if (rb_eval_string("Sequel::Dataset.private_method_defined?(:columns=)") == Qtrue) {

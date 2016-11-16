@@ -1,6 +1,10 @@
+=== HEAD
+
+* Remove verbose mode warnings (jeremyevans)
+
 === 1.6.17 (2016-04-29)
 
-*  Work with upcoming 4.34.0 release, supporting the duplicate_column_handler extension (jeremyevans)
+* Work with upcoming 4.34.0 release, supporting the duplicate_column_handler extension (jeremyevans)
 
 === 1.6.16 (2016-04-11)
 
