@@ -1020,6 +1020,17 @@ void Init_sequel_pg(void) {
   VALUE c, spg_Postgres;
   ID cg;
   cg = rb_intern("const_get");
+
+  spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
+  spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
+
+  if(rb_obj_respond_to(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 0)) {
+    if(!RTEST(rb_funcall(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 1, INT2FIX(SEQUEL_PG_VERSION_INTEGER)))) {
+      rb_warn("sequel_pg not loaded as it is not compatible with the Sequel version in use; install the latest version of sequel_pg or uninstall sequel_pg");
+      return;
+    }
+  }
+
   spg_id_new = rb_intern("new");
   spg_id_local = rb_intern("local");
   spg_id_year = rb_intern("year");
@@ -1062,12 +1073,10 @@ void Init_sequel_pg(void) {
   spg_sym__sequel_pg_type = ID2SYM(rb_intern("_sequel_pg_type"));
   spg_sym__sequel_pg_value = ID2SYM(rb_intern("_sequel_pg_value"));
 
-  spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
-  spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
   spg_PGError = rb_funcall(rb_cObject, cg, 1, rb_str_new2("PGError"));
 
   spg_nan = rb_eval_string("0.0/0.0");

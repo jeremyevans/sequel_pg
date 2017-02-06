@@ -1,5 +1,7 @@
 === HEAD
 
+* Check Sequel compatibility before overwriting methods, supported in Sequel 4.44.0+ (jeremyevans)
+
 * Remove verbose mode warnings (jeremyevans)
 
 === 1.6.17 (2016-04-29)
