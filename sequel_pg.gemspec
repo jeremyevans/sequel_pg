@@ -1,6 +1,10 @@
+version_integer = File.readlines('ext/sequel_pg/sequel_pg.c').first.split.last.to_i
+raise "invalid version" unless version_integer >= 10617
+version = "#{version_integer/10000}.#{(version_integer%10000)/100}.#{version_integer%100}"
+
 SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.name = 'sequel_pg'
-  s.version = '1.6.17'
+  s.version = "#{version_integer/10000}.#{(version_integer%10000)/100}.#{version_integer%100}"
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = false
   s.extra_rdoc_files = ["README.rdoc", "CHANGELOG", "MIT-LICENSE"]

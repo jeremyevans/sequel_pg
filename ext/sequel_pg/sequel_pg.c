@@ -1,3 +1,5 @@
+#define SEQUEL_PG_VERSION_INTEGER 10617
+
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
