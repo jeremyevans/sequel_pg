@@ -73,16 +73,30 @@ module Sequel::Postgres::Streaming
 
     private
 
-    # If using single row mode, send the query instead of executing it.
-    def execute_query(sql, args)
-      if @single_row_mode
-        @single_row_mode = false
-        @db.log_yield(sql, args){args ? send_query(sql, args) : send_query(sql)}
-        set_single_row_mode
-        block
-        self
-      else
-        super
+    if Sequel::Database.instance_methods.map(&:to_s).include?('log_connection_yield')
+      # If using single row mode, send the query instead of executing it.
+      def execute_query(sql, args)
+        if @single_row_mode
+          @single_row_mode = false
+          @db.log_connection_yield(sql, self, args){args ? send_query(sql, args) : send_query(sql)}
+          set_single_row_mode
+          block
+          self
+        else
+          super
+        end
+      end
+    else
+      def execute_query(sql, args)
+        if @single_row_mode
+          @single_row_mode = false
+          @db.log_yield(sql, args){args ? send_query(sql, args) : send_query(sql)}
+          set_single_row_mode
+          block
+          self
+        else
+          super
+        end
       end
     end
   end

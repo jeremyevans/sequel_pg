@@ -1,5 +1,7 @@
 === HEAD
 
+* Support logging of connection information in single row mode (jeremyevans)
+
 * Check Sequel compatibility before overwriting methods, supported in Sequel 4.44.0+ (jeremyevans)
 
 * Remove verbose mode warnings (jeremyevans)
