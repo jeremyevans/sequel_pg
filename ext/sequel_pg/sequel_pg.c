@@ -1,4 +1,4 @@
-#define SEQUEL_PG_VERSION_INTEGER 10617
+#define SEQUEL_PG_VERSION_INTEGER 10618
 
 #include <string.h>
 #include <stdio.h>
