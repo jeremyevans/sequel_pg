@@ -154,9 +154,11 @@ sequel_pg has been tested on the following:
 
 * ruby 1.8.7
 * ruby 1.9.3
-* ruby 2.0.0
-* ruby 2.1.4
-* rbx 2.2.9
+* ruby 2.0
+* ruby 2.1
+* ruby 2.2
+* ruby 2.3
+* ruby 2.4
 
 == Known Issues
 
