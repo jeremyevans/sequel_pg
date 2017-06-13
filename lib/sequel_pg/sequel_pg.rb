@@ -5,7 +5,7 @@ class Sequel::Postgres::Database
   attr_accessor :optimize_model_load
 end
 
-# Add faster versions of Dataset#map, #to_hash, #select_map, #select_order_map, and #select_hash
+# Add faster versions of Dataset#map, #as_hash, #to_hash_groups, #select_map, #select_order_map, and #select_hash
 class Sequel::Postgres::Dataset
   # Set whether to enable optimized model loading for this dataset.
   attr_writer :optimize_model_load
@@ -32,7 +32,7 @@ class Sequel::Postgres::Dataset
   end
 
   # In the case where both arguments given, use an optimized version.
-  def to_hash(key_column, value_column = nil, opts = Sequel::OPTS)
+  def as_hash(key_column, value_column = nil, opts = Sequel::OPTS)
     if value_column && !opts[:hash]
       clone(:_sequel_pg_type=>:hash, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
     elsif opts.empty?
@@ -40,6 +40,12 @@ class Sequel::Postgres::Dataset
     else
       super
     end
+  end
+
+  unless Sequel::Dataset.instance_method_defined?(:as_hash)
+    # Handle previous versions of Sequel that use to_hash instead of as_hash
+    alias to_hash as_hash
+    remove_method :as_hash
   end
 
   # In the case where both arguments given, use an optimized version.

@@ -1,3 +1,7 @@
+=== master
+
+* Override Dataset#as_hash instead of #to_hash if #as_hash is defined (jeremyevans)
+
 === 1.6.19 (2017-06-13)
 
 * Use PG::Error instead of PGError if available, avoiding deprecation warning on pg 0.21.0+ (jeremyevans)
