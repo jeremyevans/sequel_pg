@@ -1,3 +1,7 @@
+=== 1.6.19 (2017-06-13)
+
+* Use PG::Error instead of PGError if available, avoiding deprecation warning on pg 0.21.0+ (jeremyevans)
+
 === 1.6.18 (2017-04-27)
 
 * Support logging of connection information in single row mode (jeremyevans)

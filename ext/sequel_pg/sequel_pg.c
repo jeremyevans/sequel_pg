@@ -1,4 +1,4 @@
-#define SEQUEL_PG_VERSION_INTEGER 10618
+#define SEQUEL_PG_VERSION_INTEGER 10619
 
 #include <string.h>
 #include <stdio.h>
@@ -1077,7 +1077,7 @@ void Init_sequel_pg(void) {
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
-  spg_PGError = rb_funcall(rb_cObject, cg, 1, rb_str_new2("PGError"));
+  spg_PGError = rb_eval_string("defined?(PG::Error) ? PG::Error : PGError");
 
   spg_nan = rb_eval_string("0.0/0.0");
   spg_pos_inf = rb_eval_string("1.0/0.0");
