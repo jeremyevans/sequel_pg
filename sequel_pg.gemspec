@@ -1,6 +1,5 @@
 version_integer = File.readlines('ext/sequel_pg/sequel_pg.c').first.split.last.to_i
 raise "invalid version" unless version_integer >= 10617
-version = "#{version_integer/10000}.#{(version_integer%10000)/100}.#{version_integer%100}"
 
 SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.name = 'sequel_pg'
@@ -22,7 +21,7 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.description = <<END
 sequel_pg overwrites the inner loop of the Sequel postgres
 adapter row fetching code with a C version.  The C version
-is significantly faster (2-6x) than the pure ruby version
+is significantly faster than the pure ruby version
 that Sequel uses by default.
 
 sequel_pg also offers optimized versions of some dataset
