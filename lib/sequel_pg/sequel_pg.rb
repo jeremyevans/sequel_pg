@@ -42,7 +42,7 @@ class Sequel::Postgres::Dataset
     end
   end
 
-  unless Sequel::Dataset.instance_method_defined?(:as_hash)
+  unless Sequel::Dataset.method_defined?(:as_hash)
     # Handle previous versions of Sequel that use to_hash instead of as_hash
     alias to_hash as_hash
     remove_method :as_hash
