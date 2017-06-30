@@ -1,4 +1,10 @@
-=== master
+=== 1.7.0 (2017-06-30)
+
+* Add Dataset#with_optimize_model_load to change optimized model loading for specific datasets (jeremyevans)
+
+* Deprecate optimize_model_load Database and Dataset accessors (jeremyevans)
+
+* Turn optimized model loading on by default, disable automatically when Model.call overridden (jeremyevans)
 
 * Override Dataset#as_hash instead of #to_hash if #as_hash is defined (jeremyevans)
 
