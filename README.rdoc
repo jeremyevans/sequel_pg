@@ -2,7 +2,7 @@
 
 sequel_pg overwrites the inner loop of the Sequel postgres adapter
 row fetching code with a C version.  The C version is significantly
-faster (2-6x) than the pure ruby version that Sequel uses by default.
+faster than the pure ruby version that Sequel uses by default.
 
 == Real world difference
 
@@ -11,61 +11,39 @@ selecting, but it should be noticeable whenever many rows are selected.
 Here's an example that shows the difference it makes on a couple of
 models:
 
-  $ irb -r model -r benchmark 
-  irb(main):001:0> Track.count
-  => 140854
-  irb(main):002:0> Album.count
-  => 5579
-  irb(main):003:0> puts Benchmark.measure{Track.each{}}
-   10.740000   0.190000  10.930000 ( 11.875343)
-  => nil
-  irb(main):004:0> puts Benchmark.measure{10.times{Album.each{}}}
-    7.920000   0.070000   7.990000 (  8.482130)
-  => nil
-  irb(main):005:0> require '/data/code/sequel_pg/ext/sequel_pg/sequel_pg'
-  => true
-  irb(main):006:0> puts Benchmark.measure{Track.each{}}
-    2.360000   0.400000   2.760000 (  3.723098)
-  => nil
-  irb(main):007:0> puts Benchmark.measure{10.times{Album.each{}}}
-    1.300000   0.190000   1.490000 (  2.001393)
-  => nil
+  Track.count # => 202261
+  Album.count # => 7264
 
-Here's an example that uses a modified version of swift's benchmarks
-(http://github.com/shanna/swift/tree/master/benchmarks/):
-  
-  benchmark         sys       user      total     real     rss
-  sequel #select    0.090000  2.020000  2.110000  2.246688 46.54m
-  sequel_pg #select 0.000000  0.250000  0.250000  0.361999  7.33m
+Without sequel_pg:
 
-sequel_pg also has code to speed up the map, to_hash, to_hash_groups,
-select_hash, select_hash_groups, select_map, and select_order_map
-Dataset methods, which is on by default. It also has code to speed
-up the loading of model objects, which is off by default as it isn't
-fully compatible.  It doesn't handle overriding Model.call,
-Model#set_values, or Model#after_initialize, which may cause problems
-with the following plugins that ship with Sequel:
+  puts Benchmark.measure{Track.each{}}
+  # 3.400000   0.290000   3.690000 (  4.005150)
+  puts Benchmark.measure{10.times{Album.each{}}}
+  # 2.180000   0.120000   2.300000 (  2.479352)
 
-* class_table_inheritance
-* force_encoding
-* serialization
-* single_table_inheritance
-* typecast_on_load
-* update_primary_key
+With sequel_pg:
 
-If you want to extract that last ounce of performance when loading
-model objects and you can live with the limitations, you can
-enable the model optimization via:
+  puts Benchmark.measure{Track.each{}}
+  # 1.660000   0.260000   1.920000 (  2.287216)
+  puts Benchmark.measure{10.times{Album.each{}}}
+  # 0.960000   0.110000   1.070000 (  1.260913)
 
-  # All datasets
-  DB.optimize_model_load = true
+sequel_pg also speeds up the following Dataset methods:
 
-  # Specific dataset
-  Artist.dataset.optimize_model_load = true
+* map
+* as_hash/to_hash
+* to_hash_groups,
+* select_hash
+* select_hash_groups
+* select_map
+* select_order_map
+
+Additionally, in most cases sequel_pg also speeds up the loading of
+model datasets by optimizing model instance creation.
 
 == Streaming
 
-If you are using PostgreSQL 9.2beta3 or higher on the client, then sequel_pg
+If you are using PostgreSQL 9.2+ on the client, then sequel_pg
 should enable streaming support.  This allows you to stream returned
 rows one at a time, instead of collecting the entire result set in
 memory (which is how PostgreSQL works by default).  You can check
