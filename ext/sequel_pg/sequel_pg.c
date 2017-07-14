@@ -127,13 +127,14 @@ static int enc_get_index(VALUE val)
 }
 #endif
 
-static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, char *word, VALUE converter
+static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, VALUE buf, VALUE converter
 #ifdef SPG_ENCODING
 , int enc_index
 #endif
 )
 {
   int word_index = 0;
+  char *word = RSTRING_PTR(buf);
 
   /* The current character in the input string. */
   char c;
@@ -203,7 +204,7 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
       else if(c == '{')
       {
         (*index)++;
-        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, word, converter
+        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, buf, converter
 #ifdef SPG_ENCODING
 , enc_index
 #endif
@@ -236,6 +237,8 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
     }
   }
 
+  RB_GC_GUARD(buf);
+
   return array;
 }
 
@@ -246,8 +249,6 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
   char *c_pg_array_string = StringValueCStr(pg_array_string);
   int array_string_length = RSTRING_LEN(pg_array_string);
   VALUE buf = rb_str_buf_new(array_string_length);
-  RB_GC_GUARD(buf);
-  char *word = RSTRING_PTR(buf);
   int index = 1;
 
   if (array_string_length == 0) {
@@ -271,7 +272,7 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
       rb_raise(rb_eArgError, "unexpected PostgreSQL array format, doesn't start with { or [");
   }
 
-  return read_array(&index, c_pg_array_string, array_string_length, word, converter
+  return read_array(&index, c_pg_array_string, array_string_length, buf, converter
 #ifdef SPG_ENCODING
 , enc_get_index(pg_array_string)
 #endif
