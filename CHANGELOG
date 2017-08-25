@@ -1,4 +1,4 @@
-=== master
+=== 1.7.1 (2017-08-25)
 
 * Handle case where PGconn#get_result returns nil in single row mode (jeremyevans)
 
