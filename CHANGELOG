@@ -1,3 +1,9 @@
+=== master
+
+* Handle case where PGconn#get_result returns nil in single row mode (jeremyevans)
+
+* Fix RB_GC_GUARD usage to handle additional segfault (Eric Wong)
+
 === 1.7.0 (2017-06-30)
 
 * Add Dataset#with_optimize_model_load to change optimized model loading for specific datasets (jeremyevans)

@@ -925,6 +925,9 @@ static VALUE spg__yield_each_row(VALUE self) {
   GetPGconn(rconn, conn);
 
   rres = rb_funcall(rconn, spg_id_get_result, 0);
+  if (rres == Qnil) {
+    goto end_yield_each_row;
+  }
   rb_funcall(rres, spg_id_check, 0);
   GetPGresult(rres, res);
 
@@ -971,11 +974,15 @@ static VALUE spg__yield_each_row(VALUE self) {
     }
 
     rres = rb_funcall(rconn, spg_id_get_result, 0);
+    if (rres == Qnil) {
+      goto end_yield_each_row;
+    }
     rb_funcall(rres, spg_id_check, 0);
     GetPGresult(rres, res);
   }
   rb_funcall(rres, spg_id_clear, 0);
 
+end_yield_each_row:
   return self;
 }
 
