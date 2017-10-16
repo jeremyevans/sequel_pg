@@ -39,17 +39,11 @@
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 
-/* Whether the data objects are structs instead of just pointers */
-static int unwrap_structs;
 static int use_columns_method;
 
 /* External functions defined by ruby-pg when data objects are structs */
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
-
-/* Normalize access to data objects for both old and new versions of pg gem */
-#define GetPGconn(_val, _var) if (unwrap_structs) {Check_Type(_val, T_DATA); _var = pg_get_pgconn(_val);} else {Data_Get_Struct(_val, PGconn, _var);}
-#define GetPGresult(_val, _var) if (unwrap_structs) {Check_Type(_val, T_DATA); _var = pgresult_get(_val);} else {Data_Get_Struct(_val, PGresult, _var);}
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
@@ -623,7 +617,8 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   if (!RTEST(rres)) {
     return self;
   }
-  GetPGresult(rres, res);
+  Check_Type(rres, T_DATA);
+  res = pgresult_get(rres);
 
   int enc_index;
   enc_index = enc_get_index(rres);
@@ -862,7 +857,8 @@ static VALUE spg_supports_streaming_p(VALUE self) {
 #if HAVE_PQSETSINGLEROWMODE
 static VALUE spg_set_single_row_mode(VALUE self) {
   PGconn *conn;
-  GetPGconn(self, conn);
+  Check_Type(self, T_DATA);
+  conn = pg_get_pgconn(self);
   if (PQsetSingleRowMode(conn) != 1) {
       rb_raise(spg_PGError, "cannot set single row mode");
   }
@@ -886,14 +882,16 @@ static VALUE spg__yield_each_row(VALUE self) {
 
   rconn = rb_ary_entry(self, 1);
   self = rb_ary_entry(self, 0);
-  GetPGconn(rconn, conn);
+  Check_Type(rconn, T_DATA);
+  conn = pg_get_pgconn(rconn);
 
   rres = rb_funcall(rconn, spg_id_get_result, 0);
   if (rres == Qnil) {
     goto end_yield_each_row;
   }
   rb_funcall(rres, spg_id_check, 0);
-  GetPGresult(rres, res);
+  Check_Type(rres, T_DATA);
+  res = pgresult_get(rres);
 
   int enc_index;
   enc_index = enc_get_index(rres);
@@ -940,7 +938,8 @@ static VALUE spg__yield_each_row(VALUE self) {
       goto end_yield_each_row;
     }
     rb_funcall(rres, spg_id_check, 0);
-    GetPGresult(rres, res);
+    Check_Type(rres, T_DATA);
+    res = pgresult_get(rres);
   }
   rb_funcall(rres, spg_id_clear, 0);
 
@@ -952,7 +951,8 @@ static VALUE spg__flush_results(VALUE rconn) {
   PGconn *conn;
   PGresult *res;
   VALUE error = 0;
-  GetPGconn(rconn, conn);
+  Check_Type(rconn, T_DATA);
+  conn = pg_get_pgconn(rconn);
 
   while ((res = PQgetResult(conn)) != NULL) {
     if (!error) {
@@ -1066,9 +1066,6 @@ void Init_sequel_pg(void) {
   /* Check for 1.8-1.9.2 stdlib date that needs Rational for usec accuracy */
   if (rb_attr_get(rb_eval_string("Date.today"), rb_intern("@ajd")) != Qnil) {
     spg_id_Rational = rb_intern("Rational");
-  }
-  if (rb_eval_string("defined?(PG::TypeMapAllStrings)") != Qnil) {
-    unwrap_structs = 1;
   }
 
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));

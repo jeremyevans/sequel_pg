@@ -1,5 +1,7 @@
 === master
 
+* Drop pg <0.18.0 support (jeremyevans)
+
 * Drop ruby 1.8.7 support (jeremyevans)
 
 === 1.7.1 (2017-08-25)
