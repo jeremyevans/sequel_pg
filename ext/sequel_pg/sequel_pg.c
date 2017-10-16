@@ -12,11 +12,10 @@
 #define SPG_MAX_FIELDS 256
 #endif
 #define SPG_MICROSECONDS_PER_DAY_LL 86400000000ULL
-#define SPG_MICROSECONDS_PER_DAY 86400000000.0
 #define SPG_MINUTES_PER_DAY 1440.0
 #define SPG_SECONDS_PER_DAY 86400.0
 
-#define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, spg_id_Rational ? rb_funcall(rb_cObject, spg_id_Rational, 2, INT2NUM(usec), ULL2NUM(SPG_MICROSECONDS_PER_DAY_LL)) : rb_float_new(usec/SPG_MICROSECONDS_PER_DAY)); }
+#define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, rb_Rational2(INT2NUM(usec), spg_usec_per_day)); }
 
 #define SPG_NO_TZ 0
 #define SPG_DB_LOCAL 1
@@ -64,8 +63,8 @@ static VALUE spg_sym__sequel_pg_value;
 static VALUE spg_nan;
 static VALUE spg_pos_inf;
 static VALUE spg_neg_inf;
+static VALUE spg_usec_per_day;
 
-static ID spg_id_Rational;
 static ID spg_id_new;
 static ID spg_id_local;
 static ID spg_id_year;
@@ -1038,11 +1037,12 @@ void Init_sequel_pg(void) {
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
-  spg_PGError = rb_eval_string("defined?(PG::Error) ? PG::Error : PGError");
+  spg_PGError = rb_funcall(rb_funcall(rb_cObject, cg, 1, rb_str_new2("PG")), cg, 1, rb_str_new2("Error"));
 
   spg_nan = rb_eval_string("0.0/0.0");
   spg_pos_inf = rb_eval_string("1.0/0.0");
   spg_neg_inf = rb_eval_string("-1.0/0.0");
+  spg_usec_per_day = ULL2NUM(86400000000ULL);
 
   rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
@@ -1053,11 +1053,7 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_nan);
   rb_global_variable(&spg_pos_inf);
   rb_global_variable(&spg_neg_inf);
-
-  /* Check for 1.8-1.9.2 stdlib date that needs Rational for usec accuracy */
-  if (rb_attr_get(rb_eval_string("Date.today"), rb_intern("@ajd")) != Qnil) {
-    spg_id_Rational = rb_intern("Rational");
-  }
+  rb_global_variable(&spg_usec_per_day);
 
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_undef_method(c, "yield_hash_rows");
