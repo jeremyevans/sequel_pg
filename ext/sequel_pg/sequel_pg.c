@@ -39,8 +39,6 @@
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 
-static int use_columns_method;
-
 /* External functions defined by ruby-pg when data objects are structs */
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
@@ -549,14 +547,6 @@ static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
   return pg_columns;
 }
 
-static void spg_set_columns(VALUE self, VALUE cols) {
-  if (use_columns_method) {
-    rb_funcall(self, spg_id_columns_equal, 1, cols);
-  } else {
-    rb_ivar_set(self, spg_id_columns, cols);
-  }
-}
-
 static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE *colconvert) {
   long i;
   long j;
@@ -597,7 +587,8 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
         break;
     }
   }
-  spg_set_columns(self, rb_ary_new4(nfields, colsyms));
+
+  rb_funcall(self, spg_id_columns_equal, 1, rb_ary_new4(nfields, colsyms));
 }
 
 static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
@@ -1073,10 +1064,6 @@ void Init_sequel_pg(void) {
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_undef_method(c, "fetch_rows_set_cols");
   rb_define_private_method(c, "fetch_rows_set_cols", spg_fetch_rows_set_cols, 1);
-
-  if (rb_eval_string("Sequel::Dataset.private_method_defined?(:columns=)") == Qtrue) {
-    use_columns_method = 1;
-  }
 
   rb_define_singleton_method(spg_Postgres, "supports_streaming?", spg_supports_streaming_p, 0);
 
