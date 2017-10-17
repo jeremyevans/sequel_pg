@@ -1,5 +1,7 @@
 === master
 
+* Parse BC dates and timestamps correctly (jeremyevans)
+
 * Drop Sequel <4.34.0 support (jeremyevans)
 
 * Drop pg <0.18.0 support (jeremyevans)

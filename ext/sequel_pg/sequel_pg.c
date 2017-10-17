@@ -11,7 +11,6 @@
 #ifndef SPG_MAX_FIELDS
 #define SPG_MAX_FIELDS 256
 #endif
-#define SPG_MICROSECONDS_PER_DAY_LL 86400000000ULL
 #define SPG_MINUTES_PER_DAY 1440.0
 #define SPG_SECONDS_PER_DAY 86400.0
 
@@ -289,13 +288,18 @@ static VALUE spg_date(const char *s, VALUE self) {
     return spg_timestamp_error(s, self, "unexpected date format");
   }
 
+  if(s[10] == ' ' && s[11] == 'B' && s[12] == 'C') {
+    year = -year;
+    year++;
+  }
+
   return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
 }
 
 static VALUE spg_timestamp(const char *s, VALUE self) {
   VALUE dtc, dt, rtz, db;
   int tz = SPG_NO_TZ;
-  int year, month, day, hour, min, sec, usec, tokens, utc_offset;
+  int year, month, day, hour, min, sec, usec, tokens, utc_offset, len;
   int usec_start, usec_stop;
   char offset_sign = 0;
   int offset_hour = 0;
@@ -347,6 +351,12 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
       return spg_timestamp_error(s, self, "unexpected datetime format");
     }
     usec = 0;
+  }
+
+  len = strlen(s);
+  if(s[len-3] == ' ' && s[len-2] == 'B' && s[len-1] == 'C') {
+    year = -year;
+    year++;
   }
 
   if (offset_sign == '-') {
