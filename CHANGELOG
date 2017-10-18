@@ -1,5 +1,7 @@
 === master
 
+* Handle timezone offsets with seconds when parsing timestamps (jeremyevans)
+
 * Parse BC dates and timestamps correctly (jeremyevans)
 
 * Drop Sequel <4.34.0 support (jeremyevans)

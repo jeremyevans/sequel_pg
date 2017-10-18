@@ -331,18 +331,18 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
   }
 
   if (0 != strchr(s, '.')) {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%n%d%n%c%02d:%02d", 
-	&year, &month, &day, &hour, &min, &sec,
-       	&usec_start, &usec, &usec_stop, 
-	&offset_sign, &offset_hour, &offset_minute);
+    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%n%d%n%c%02d:%02d:%02d", 
+        &year, &month, &day, &hour, &min, &sec,
+        &usec_start, &usec, &usec_stop, 
+        &offset_sign, &offset_hour, &offset_minute, &offset_seconds);
     if(tokens < 7) {
       return spg_timestamp_error(s, self, "unexpected datetime format");
     }
     usec *= (int) pow(10, (6 - (usec_stop - usec_start)));
   } else {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d%c%02d:%02d", 
-	&year, &month, &day, &hour, &min, &sec,
-	&offset_sign, &offset_hour, &offset_minute);
+    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d%c%02d:%02d:%02d", 
+        &year, &month, &day, &hour, &min, &sec,
+        &offset_sign, &offset_hour, &offset_minute, &offset_seconds);
     if (tokens == 3) {
       hour = 0;
       min = 0;
@@ -362,6 +362,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
   if (offset_sign == '-') {
     offset_hour *= -1;
     offset_minute *= -1;
+    offset_seconds *= -1;
   }
 
   dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
@@ -373,7 +374,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
        */
       dt = rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
       utc_offset = NUM2INT(rb_funcall(dt, spg_id_utc_offset, 0));
-      offset_seconds = offset_hour * 3600 + offset_minute * 60;
+      offset_seconds += offset_hour * 3600 + offset_minute * 60;
       if (utc_offset != offset_seconds) {
         dt = rb_funcall(dt, spg_id_op_plus, 1, INT2NUM(utc_offset - offset_seconds));
       }
@@ -408,7 +409,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
       /* Offset given, handle correct local time.
        * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
        */
-      offset_fraction = offset_hour/24.0 + offset_minute/SPG_MINUTES_PER_DAY;
+      offset_fraction = offset_hour/24.0 + offset_minute/SPG_MINUTES_PER_DAY + offset_seconds/SPG_SECONDS_PER_DAY;
       dt = rb_funcall(dtc, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
       SPG_DT_ADD_USEC
 
