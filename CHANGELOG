@@ -1,3 +1,7 @@
+=== master
+
+* Fix issue when using Dataset#as_hash and Dataset#to_hash_groups with the null_dataset extension (jeremyevans)
+
 === 1.8.0 (2017-10-18)
 
 * Handle timezone offsets with seconds when parsing timestamps (jeremyevans)

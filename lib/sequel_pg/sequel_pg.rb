@@ -45,6 +45,7 @@ class Sequel::Postgres::Dataset
   def as_hash(key_column, value_column = nil, opts = Sequel::OPTS)
     if value_column && !opts[:hash]
       clone(:_sequel_pg_type=>:hash, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
+      {}
     elsif opts.empty?
       super(key_column, value_column)
     else
@@ -62,6 +63,7 @@ class Sequel::Postgres::Dataset
   def to_hash_groups(key_column, value_column = nil, opts = Sequel::OPTS)
     if value_column && !opts[:hash]
       clone(:_sequel_pg_type=>:hash_groups, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
+      {}
     elsif opts.empty?
       super(key_column, value_column)
     else
