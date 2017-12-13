@@ -32,7 +32,7 @@ sequel_pg also speeds up the following Dataset methods:
 
 * map
 * as_hash/to_hash
-* to_hash_groups,
+* to_hash_groups
 * select_hash
 * select_hash_groups
 * select_map
@@ -66,10 +66,6 @@ can do the following:
 
   DB.stream_all_queries = true
 
-Note that pg 0.14.1+ is required for streaming to work.  This is not
-required by the gem, as it is only a requirement for streaming, not
-for general use.
-
 == Installing the gem
 
   gem install sequel_pg
@@ -84,10 +80,6 @@ Make sure the pg_config binary is in your PATH so the installation
 can find the PostgreSQL shared library and header files.  Alternatively,
 you can use the POSTGRES_LIB and POSTGRES_INCLUDE environment
 variables to specify the shared library and header directories.
-
-While previous versions of this gem supported Windows, the current
-version does not, due to the need to call C functions defined
-in the pg gem.
 
 == Running the specs
 
@@ -144,8 +136,7 @@ sequel_pg has been tested on the following:
   result in incorrect date/timestamp handling. In addition to
   PostgreSQL defaulting to ISO, Sequel also manually sets the
   date format to ISO by default, so unless you are overriding that
-  setting (via Sequel::Postgres.use_iso_date_format = false), you
-  should be OK.
+  setting (via DB.use_iso_date_format = false), you should be OK.
 * Adding your own type conversion procs only has an effect if those
   types are not handled by default.
 * You do not need to require the library, the sequel postgres adapter
