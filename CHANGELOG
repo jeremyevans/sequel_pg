@@ -1,4 +1,4 @@
-=== master
+=== 1.8.1 (2017-12-13)
 
 * Fix issue when using Dataset#as_hash and Dataset#to_hash_groups with the null_dataset extension (jeremyevans)
 
