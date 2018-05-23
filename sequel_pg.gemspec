@@ -5,7 +5,6 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.name = 'sequel_pg'
   s.version = "#{version_integer/10000}.#{(version_integer%10000)/100}.#{version_integer%100}"
   s.platform = Gem::Platform::RUBY
-  s.has_rdoc = false
   s.extra_rdoc_files = ["README.rdoc", "CHANGELOG", "MIT-LICENSE"]
   s.rdoc_options += ["--quiet", "--line-numbers", "--inline-source", '--title', 'sequel_pg: Faster SELECTs when using Sequel with pg', '--main', 'README.rdoc']
   s.summary = "Faster SELECTs when using Sequel with pg"
