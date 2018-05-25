@@ -1,4 +1,4 @@
-#define SEQUEL_PG_VERSION_INTEGER 10801
+#define SEQUEL_PG_VERSION_INTEGER 10802
 
 #include <string.h>
 #include <stdio.h>
@@ -43,7 +43,7 @@ PGresult* pgresult_get(VALUE);
 
 static VALUE spg_Sequel;
 static VALUE spg_Blob;
-static VALUE spg_BigDecimal;
+static VALUE spg_Kernel;
 static VALUE spg_Date;
 static VALUE spg_SQLTime;
 static VALUE spg_PGError;
@@ -64,6 +64,7 @@ static VALUE spg_pos_inf;
 static VALUE spg_neg_inf;
 static VALUE spg_usec_per_day;
 
+static ID spg_id_BigDecimal;
 static ID spg_id_new;
 static ID spg_id_local;
 static ID spg_id_year;
@@ -491,7 +492,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         }
         break;
       case 1700: /* numeric */
-        rv = rb_funcall(spg_BigDecimal, spg_id_new, 1, rb_str_new(v, PQgetlength(res, i, j)));
+        rv = rb_funcall(spg_Kernel, spg_id_BigDecimal, 1, rb_str_new(v, PQgetlength(res, i, j)));
         break;
       case 1082: /* date */
         rv = spg_date(v, self);
@@ -1002,6 +1003,7 @@ void Init_sequel_pg(void) {
     }
   }
 
+  spg_id_BigDecimal = rb_intern("BigDecimal");
   spg_id_new = rb_intern("new");
   spg_id_local = rb_intern("local");
   spg_id_year = rb_intern("year");
@@ -1046,7 +1048,7 @@ void Init_sequel_pg(void) {
 
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
-  spg_BigDecimal = rb_funcall(rb_cObject, cg, 1, rb_str_new2("BigDecimal")); 
+  spg_Kernel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Kernel")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
   spg_PGError = rb_funcall(rb_funcall(rb_cObject, cg, 1, rb_str_new2("PG")), cg, 1, rb_str_new2("Error"));
 
@@ -1057,7 +1059,7 @@ void Init_sequel_pg(void) {
 
   rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
-  rb_global_variable(&spg_BigDecimal);
+  rb_global_variable(&spg_Kernel);
   rb_global_variable(&spg_Date);
   rb_global_variable(&spg_SQLTime);
   rb_global_variable(&spg_PGError);

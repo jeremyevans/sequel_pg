@@ -1,3 +1,7 @@
+=== 1.8.2 (2018-05-25)
+
+* Use Kernel.BigDecimal instead of BigDecimal.new to avoid verbose mode deprecation warnings (jeremyevans)
+
 === 1.8.1 (2017-12-13)
 
 * Fix issue when using Dataset#as_hash and Dataset#to_hash_groups with the null_dataset extension (jeremyevans)
