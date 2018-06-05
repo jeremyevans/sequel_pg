@@ -1,5 +1,7 @@
 === master
 
+* Borrow pg_text_dec_integer function from ruby-pg and use it to improve performance (jeremyevans)
+
 * Borrow PG_ENCODING_SET_NOCHECK macro from ruby-pg and use it to improve performance (jeremyevans)
 
 === 1.8.2 (2018-05-25)
