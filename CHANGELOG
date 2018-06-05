@@ -1,3 +1,7 @@
+=== master
+
+* Borrow PG_ENCODING_SET_NOCHECK macro from ruby-pg and use it to improve performance (jeremyevans)
+
 === 1.8.2 (2018-05-25)
 
 * Use Kernel.BigDecimal instead of BigDecimal.new to avoid verbose mode deprecation warnings (jeremyevans)

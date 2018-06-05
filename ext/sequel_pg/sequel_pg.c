@@ -109,6 +109,14 @@ static int enc_get_index(VALUE val) {
   return i;
 }
 
+#define PG_ENCODING_SET_NOCHECK(obj,i) \
+	do { \
+		if ((i) < ENCODING_INLINE_MAX) \
+			ENCODING_SET_INLINED((obj), (i)); \
+		else \
+			rb_enc_set_index((obj), (i)); \
+	} while(0)
+
 static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, VALUE buf, VALUE converter, int enc_index) {
   int word_index = 0;
   char *word = RSTRING_PTR(buf);
@@ -155,7 +163,7 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
             VALUE rword = rb_tainted_str_new(word, word_index);
             RB_GC_GUARD(rword);
 
-            rb_enc_associate_index(rword, enc_index);
+            PG_ENCODING_SET_NOCHECK(rword, enc_index);
 
             if (RTEST(converter)) {
               rword = rb_funcall(converter, spg_id_call, 1, rword);
@@ -509,11 +517,11 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
       case 25: /* text */
       case 1043: /* varchar*/
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
-        rb_enc_associate_index(rv, enc_index);
+        PG_ENCODING_SET_NOCHECK(rv, enc_index);
         break;
       default:
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
-        rb_enc_associate_index(rv, enc_index);
+        PG_ENCODING_SET_NOCHECK(rv, enc_index);
         if (colconvert[j] != Qnil) {
           rv = rb_funcall(colconvert[j], spg_id_call, 1, rv); 
         }
