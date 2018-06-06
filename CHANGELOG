@@ -1,4 +1,4 @@
-=== master
+=== 1.9.0 (2018-06-06)
 
 * Return arrays of common data types as PGArray instances automatically with much improved performance (jeremyevans)
 
