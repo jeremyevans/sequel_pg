@@ -42,6 +42,7 @@ PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
 
 static VALUE spg_Sequel;
+static VALUE spg_PGArray;
 static VALUE spg_Blob;
 static VALUE spg_Kernel;
 static VALUE spg_Date;
@@ -58,6 +59,33 @@ static VALUE spg_sym_hash_groups;
 static VALUE spg_sym_model;
 static VALUE spg_sym__sequel_pg_type;
 static VALUE spg_sym__sequel_pg_value;
+
+static VALUE spg_sym_text;
+static VALUE spg_sym_character_varying;
+static VALUE spg_sym_integer;
+static VALUE spg_sym_timestamp;
+static VALUE spg_sym_timestamptz;
+static VALUE spg_sym_time;
+static VALUE spg_sym_timetz;
+static VALUE spg_sym_bigint;
+static VALUE spg_sym_numeric;
+static VALUE spg_sym_double_precision;
+static VALUE spg_sym_boolean;
+static VALUE spg_sym_bytea;
+static VALUE spg_sym_date;
+static VALUE spg_sym_smallint;
+static VALUE spg_sym_oid;
+static VALUE spg_sym_real;
+static VALUE spg_sym_xml;
+static VALUE spg_sym_money;
+static VALUE spg_sym_bit;
+static VALUE spg_sym_bit_varying;
+static VALUE spg_sym_uuid;
+static VALUE spg_sym_xid;
+static VALUE spg_sym_cid;
+static VALUE spg_sym_name;
+static VALUE spg_sym_tid;
+static VALUE spg_sym_int2vector;
 
 static VALUE spg_nan;
 static VALUE spg_pos_inf;
@@ -174,7 +202,9 @@ pg_text_dec_integer(char *val, int len)
 	return rb_cstr2inum(val, 10);
 }
 
-static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, VALUE buf, VALUE converter, int enc_index) {
+static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int enc_index, int oid, VALUE db);
+
+static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, VALUE buf, VALUE converter, int enc_index, int oid, VALUE db) {
   int word_index = 0;
   char *word = RSTRING_PTR(buf);
 
@@ -217,16 +247,8 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
           }
           else 
           {
-            VALUE rword = rb_tainted_str_new(word, word_index);
-            RB_GC_GUARD(rword);
-
-            PG_ENCODING_SET_NOCHECK(rword, enc_index);
-
-            if (RTEST(converter)) {
-              rword = rb_funcall(converter, spg_id_call, 1, rword);
-            }
-
-            rb_ary_push(array, rword);
+            word[word_index] = '\0';
+            rb_ary_push(array, spg__array_col_value(word, word_index, converter, enc_index, oid, db));
           }
         }
         if(c == '}')
@@ -244,7 +266,7 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
       else if(c == '{')
       {
         (*index)++;
-        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, buf, converter, enc_index));
+        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, buf, converter, enc_index, oid, db));
         escapeNext = 1;
       }
       else
@@ -278,29 +300,23 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
   return array;
 }
 
-static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) {
-
-  /* convert to c-string, create additional ruby string buffer of
-   * the same length, as that will be the worst case. */
-  char *c_pg_array_string = StringValueCStr(pg_array_string);
-  int array_string_length = RSTRING_LEN(pg_array_string);
-  VALUE buf = rb_str_buf_new(array_string_length);
-  int index = 1;
-
+static VALUE check_pg_array(int* index, char *c_pg_array_string, int array_string_length) {
   if (array_string_length == 0) {
     rb_raise(rb_eArgError, "unexpected PostgreSQL array format, empty");
+  } else if (array_string_length == 2 && c_pg_array_string[0] == '{' && c_pg_array_string[0] == '}') {
+    return rb_ary_new();
   }
 
   switch (c_pg_array_string[0]) {
     case '[':
       /* Skip explicit subscripts, scanning until opening array */
-      for(;index < array_string_length && c_pg_array_string[index] != '{'; ++index)
+      for(;(*index) < array_string_length && c_pg_array_string[(*index)] != '{'; ++(*index))
         /* nothing */;
 
-      if (index >= array_string_length) {
+      if ((*index) >= array_string_length) {
         rb_raise(rb_eArgError, "unexpected PostgreSQL array format, no {");
       } else {
-        ++index;
+        ++(*index);
       }
     case '{':
       break;
@@ -308,9 +324,29 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
       rb_raise(rb_eArgError, "unexpected PostgreSQL array format, doesn't start with { or [");
   }
 
-  return read_array(&index, c_pg_array_string, array_string_length, buf, converter
-, enc_get_index(pg_array_string)
-  );
+  return Qnil;
+}
+
+static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) {
+  /* convert to c-string, create additional ruby string buffer of
+   * the same length, as that will be the worst case. */
+  char *c_pg_array_string = StringValueCStr(pg_array_string);
+  int array_string_length = RSTRING_LEN(pg_array_string);
+  int index = 1;
+  VALUE ary;
+
+  if(RTEST(ary = check_pg_array(&index, c_pg_array_string, array_string_length))) {
+    return ary;
+  }
+
+  return read_array(&index,
+    c_pg_array_string,
+    array_string_length,
+    rb_str_buf_new(array_string_length),
+    converter,
+    enc_get_index(pg_array_string),
+    0,
+    Qnil);
 }
 
 static VALUE spg_time(const char *s) {
@@ -337,11 +373,10 @@ static VALUE spg_time(const char *s) {
 }
 
 static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_msg) {
-  VALUE db;
-  db = rb_funcall(self, spg_id_db, 0);
-  if(RTEST(rb_funcall(db, spg_id_convert_infinite_timestamps, 0))) {
+  self = rb_funcall(self, spg_id_db, 0);
+  if(RTEST(rb_funcall(self, spg_id_convert_infinite_timestamps, 0))) {
     if((strcmp(s, "infinity") == 0) || (strcmp(s, "-infinity") == 0)) {
-      return rb_funcall(db, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new2(s));
+      return rb_funcall(self, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new2(s));
     }
   }
   rb_raise(rb_eArgError, "%s", error_msg);
@@ -519,17 +554,95 @@ static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
   return Qnil;
 }
 
+static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int enc_index, int oid, VALUE db) {
+  VALUE rv;
+  size_t l;
+
+  switch(oid) {
+    case 16: /* boolean */
+      rv = *v == 't' ? Qtrue : Qfalse;
+      break;
+    case 17: /* bytea */
+      v = (char *)PQunescapeBytea((unsigned char*)v, &l);
+      rv = rb_funcall(spg_Blob, spg_id_new, 1, rb_str_new(v, l));
+      PQfreemem(v);
+      break;
+    case 20: /* integer */
+    case 21:
+    case 23:
+    case 26:
+      rv = pg_text_dec_integer(v, length);
+      break;
+    case 700: /* float */
+    case 701:
+      if (strcmp("NaN", v) == 0) {
+        rv = spg_nan;
+      } else if (strcmp("Infinity", v) == 0) {
+        rv = spg_pos_inf;
+      } else if (strcmp("-Infinity", v) == 0) {
+        rv = spg_neg_inf;
+      } else {
+        rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+      }
+      break;
+    case 1700: /* numeric */
+      rv = rb_funcall(spg_Kernel, spg_id_BigDecimal, 1, rb_str_new(v, length));
+      break;
+    case 1082: /* date */
+      rv = spg_date(v, db);
+      break;
+    case 1083: /* time */
+    case 1266:
+      rv = spg_time(v);
+      break;
+    case 1114: /* timestamp */
+    case 1184:
+      rv = spg_timestamp(v, db);
+      break;
+    case 18: /* char */
+    case 25: /* text */
+    case 1043: /* varchar*/
+      rv = rb_tainted_str_new(v, length);
+      PG_ENCODING_SET_NOCHECK(rv, enc_index);
+      break;
+    default:
+      rv = rb_tainted_str_new(v, length);
+      PG_ENCODING_SET_NOCHECK(rv, enc_index);
+      if (RTEST(converter)) {
+        rv = rb_funcall(converter, spg_id_call, 1, rv);
+      }
+  }
+
+  return rv;
+}
+
+static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, VALUE converter, int enc_index, int oid, VALUE self, VALUE array_type) {
+  int index = 1;
+  VALUE args[2];
+  args[1] = array_type;
+
+  if(RTEST(args[0] = check_pg_array(&index, c_pg_array_string, array_string_length))) {
+    return rb_class_new_instance(2, args, spg_PGArray);
+  }
+
+  args[0] = read_array(&index, c_pg_array_string, array_string_length, rb_str_buf_new(array_string_length), converter, enc_index, oid, self);
+  return rb_class_new_instance(2, args, spg_PGArray);
+}
+
 static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* colconvert, int enc_index) {
   char *v;
   VALUE rv;
   size_t l;
+  int ftype = PQftype(res, j);
+  VALUE array_type;
+  VALUE scalar_oid;
 
   if(PQgetisnull(res, i, j)) {
     rv = Qnil;
   } else {
     v = PQgetvalue(res, i, j);
 
-    switch(PQftype(res, j)) {
+    switch(ftype) {
       case 16: /* boolean */
         rv = *v == 't' ? Qtrue : Qfalse;
         break;
@@ -575,6 +688,143 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
       case 1043: /* varchar*/
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
         PG_ENCODING_SET_NOCHECK(rv, enc_index);
+        break;
+      /* array types */
+      case 1009:
+      case 1014:
+      case 1015:
+      case 1007:
+      case 1115:
+      case 1185:
+      case 1183:
+      case 1270:
+      case 1016:
+      case 1231:
+      case 1022:
+      case 1000:
+      case 1001:
+      case 1182:
+      case 1005:
+      case 1028:
+      case 1021:
+      case 143:
+      case 791:
+      case 1561:
+      case 1563:
+      case 2951:
+      case 1011:
+      case 1012:
+      case 1003:
+      case 1010:
+      case 1006:
+        switch(ftype) {
+          case 1009: 
+          case 1014:
+            array_type = spg_sym_text;
+            scalar_oid = 25;
+            break;
+          case 1015:
+            array_type = spg_sym_character_varying;
+            scalar_oid = 25;
+            break;
+          case 1007:
+            array_type = spg_sym_integer;
+            scalar_oid = 23;
+            break;
+          case 1115:
+            array_type = spg_sym_timestamp;
+            scalar_oid = 1114;
+            break;
+          case 1185:
+            array_type = spg_sym_timestamptz;
+            scalar_oid = 1184;
+            break;
+          case 1183:
+            array_type = spg_sym_time;
+            scalar_oid = 1083;
+            break;
+          case 1270:
+            array_type = spg_sym_timetz;
+            scalar_oid = 1266;
+            break;
+          case 1016:
+            array_type = spg_sym_bigint;
+            scalar_oid = 20;
+            break;
+          case 1231:
+            array_type = spg_sym_numeric;
+            scalar_oid = 1700;
+            break;
+          case 1022:
+            array_type = spg_sym_double_precision;
+            scalar_oid = 701;
+            break;
+          case 1000:
+            array_type = spg_sym_boolean;
+            scalar_oid = 16;
+            break;
+          case 1001:
+            array_type = spg_sym_bytea;
+            scalar_oid = 17;
+            break;
+          case 1182:
+            array_type = spg_sym_date;
+            scalar_oid = 1082;
+            break;
+          case 1005:
+            array_type = spg_sym_smallint;
+            scalar_oid = 21;
+            break;
+          case 1028:
+            array_type = spg_sym_oid;
+            scalar_oid = 26;
+            break;
+          case 1021:
+            array_type = spg_sym_real;
+            scalar_oid = 700;
+            break;
+          case 143:
+            array_type = spg_sym_xml;
+            scalar_oid = 142;
+            break;
+          case 791:
+            array_type = spg_sym_money;
+            scalar_oid = 790;
+            break;
+          case 1561:
+            array_type = spg_sym_bit;
+            scalar_oid = 1560;
+            break;
+          case 1563:
+            array_type = spg_sym_bit_varying;
+            scalar_oid = 1562;
+            break;
+          case 2951:
+            array_type = spg_sym_uuid;
+            scalar_oid = 2950;
+            break;
+          case 1011:
+            array_type = spg_sym_xid;
+            scalar_oid = 28;
+            break;
+          case 1012:
+            array_type = spg_sym_cid;
+            scalar_oid = 29;
+            break;
+          case 1003:
+            array_type = spg_sym_name;
+            scalar_oid = 19;
+            break;
+          case 1010:
+            array_type = spg_sym_tid;
+            scalar_oid = 27;
+            break;
+          case 1006:
+            array_type = spg_sym_int2vector;
+            scalar_oid = 22;
+            break;
+        }
+        rv = spg_array_value(v, PQgetlength(res, i, j), Qnil, enc_index, scalar_oid, self, array_type);
         break;
       default:
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
@@ -1067,6 +1317,7 @@ void Init_sequel_pg(void) {
       return;
     }
   }
+  rb_funcall(spg_Postgres, rb_intern("const_set"), 2, ID2SYM(rb_intern("SEQUEL_PG_VERSION_INTEGER")), INT2FIX(SEQUEL_PG_VERSION_INTEGER));
 
   spg_id_BigDecimal = rb_intern("BigDecimal");
   spg_id_new = rb_intern("new");
@@ -1111,6 +1362,33 @@ void Init_sequel_pg(void) {
   spg_sym__sequel_pg_type = ID2SYM(rb_intern("_sequel_pg_type"));
   spg_sym__sequel_pg_value = ID2SYM(rb_intern("_sequel_pg_value"));
 
+  spg_sym_text = ID2SYM(rb_intern("text"));
+  spg_sym_character_varying = ID2SYM(rb_intern("character varying"));
+  spg_sym_integer = ID2SYM(rb_intern("integer"));
+  spg_sym_timestamp = ID2SYM(rb_intern("timestamp"));
+  spg_sym_timestamptz = ID2SYM(rb_intern("timestamptz"));
+  spg_sym_time = ID2SYM(rb_intern("time"));
+  spg_sym_timetz = ID2SYM(rb_intern("timetz"));
+  spg_sym_bigint = ID2SYM(rb_intern("bigint"));
+  spg_sym_numeric = ID2SYM(rb_intern("numeric"));
+  spg_sym_double_precision = ID2SYM(rb_intern("double precision"));
+  spg_sym_boolean = ID2SYM(rb_intern("boolean"));
+  spg_sym_bytea = ID2SYM(rb_intern("bytea"));
+  spg_sym_date = ID2SYM(rb_intern("date"));
+  spg_sym_smallint = ID2SYM(rb_intern("smallint"));
+  spg_sym_oid = ID2SYM(rb_intern("oid"));
+  spg_sym_real = ID2SYM(rb_intern("real"));
+  spg_sym_xml = ID2SYM(rb_intern("xml"));
+  spg_sym_money = ID2SYM(rb_intern("money"));
+  spg_sym_bit = ID2SYM(rb_intern("bit"));
+  spg_sym_bit_varying = ID2SYM(rb_intern("bit varying"));
+  spg_sym_uuid = ID2SYM(rb_intern("uuid"));
+  spg_sym_xid = ID2SYM(rb_intern("xid"));
+  spg_sym_cid = ID2SYM(rb_intern("cid"));
+  spg_sym_name = ID2SYM(rb_intern("name"));
+  spg_sym_tid = ID2SYM(rb_intern("tid"));
+  spg_sym_int2vector = ID2SYM(rb_intern("int2vector"));
+
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_Kernel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Kernel")); 
@@ -1154,4 +1432,8 @@ void Init_sequel_pg(void) {
   rb_define_singleton_method(spg_Postgres, "parse_pg_array", parse_pg_array, 2);
 
   rb_require("sequel_pg/sequel_pg");
+
+  rb_require("sequel/extensions/pg_array");
+  spg_PGArray = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("PGArray"));
+  rb_global_variable(&spg_PGArray);
 }

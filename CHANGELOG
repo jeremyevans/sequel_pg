@@ -1,5 +1,7 @@
 === master
 
+* Return arrays of common data types as PGArray instances automatically with much improved performance (jeremyevans)
+
 * Borrow pg_text_dec_integer function from ruby-pg and use it to improve performance (jeremyevans)
 
 * Borrow PG_ENCODING_SET_NOCHECK macro from ruby-pg and use it to improve performance (jeremyevans)
