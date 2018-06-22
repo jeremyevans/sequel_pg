@@ -5,7 +5,11 @@
 #include <math.h>
 #include <libpq-fe.h>
 #include <ruby.h>
+#include <ctype.h>
+#include <sys/types.h>
+#include <time.h>
 
+#include <ruby/version.h>
 #include <ruby/encoding.h>
 
 #ifndef SPG_MAX_FIELDS
@@ -16,11 +20,16 @@
 
 #define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, rb_Rational2(INT2NUM(usec), spg_usec_per_day)); }
 
-#define SPG_NO_TZ 0
-#define SPG_DB_LOCAL 1
-#define SPG_DB_UTC 2
-#define SPG_APP_LOCAL 4
-#define SPG_APP_UTC 8
+#define SPG_NO_TZ          (0)
+#define SPG_DB_LOCAL       (1)
+#define SPG_DB_UTC         (1<<1)
+#define SPG_DB_CUSTOM      (1 + (1<<1))
+#define SPG_APP_LOCAL      (1<<2)
+#define SPG_APP_UTC        (1<<3)
+#define SPG_APP_CUSTOM     ((1<<2) + (1<<3))
+#define SPG_TZ_INITIALIZED (1<<4)
+#define SPG_USE_TIME       (1<<5)
+#define SPG_HAS_TIMEZONE   (1<<6)
 
 #define SPG_YIELD_NORMAL 0
 #define SPG_YIELD_COLUMN 1
@@ -46,6 +55,7 @@ static VALUE spg_PGArray;
 static VALUE spg_Blob;
 static VALUE spg_Kernel;
 static VALUE spg_Date;
+static VALUE spg_DateTime;
 static VALUE spg_SQLTime;
 static VALUE spg_PGError;
 
@@ -397,85 +407,182 @@ static VALUE spg_date(const char *s, VALUE self) {
   return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
 }
 
-static VALUE spg_timestamp(const char *s, VALUE self) {
-  VALUE dtc, dt, rtz, db;
-  int tz = SPG_NO_TZ;
-  int year, month, day, hour, min, sec, usec, tokens, utc_offset, len;
-  int usec_start, usec_stop;
+static inline int char_to_digit(char c)
+{
+  return c - '0';
+}
+
+static int str4_to_int(const char *str)
+{
+  return char_to_digit(str[0]) * 1000
+      + char_to_digit(str[1]) * 100
+      + char_to_digit(str[2]) * 10
+      + char_to_digit(str[3]);
+}
+
+static int str2_to_int(const char *str)
+{
+  return char_to_digit(str[0]) * 10
+      + char_to_digit(str[1]);
+}
+
+static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
+  VALUE dt;
+  int year, month, day, hour, min, sec, utc_offset;
   char offset_sign = 0;
-  int offset_hour = 0;
-  int offset_minute = 0;
   int offset_seconds = 0;
-  double offset_fraction = 0.0;
+  int usec = 0;
+  int i;
+  const char *p = s;
+  size_t remaining = length;
 
-  db = rb_funcall(self, spg_id_db, 0);
-  rtz = rb_funcall(db, spg_id_timezone, 0);
-  if (rtz != Qnil) {
-    if (rtz == spg_sym_local) {
-      tz += SPG_DB_LOCAL;
-    } else if (rtz == spg_sym_utc) {
-      tz += SPG_DB_UTC;
-    } else {
-      return rb_funcall(db, spg_id_to_application_timestamp, 1, rb_str_new2(s)); 
-    }
+  if (tz & SPG_DB_CUSTOM || tz & SPG_APP_CUSTOM) {
+    return rb_funcall(rb_funcall(self, spg_id_db, 0), spg_id_to_application_timestamp, 1, rb_str_new2(s)); 
   }
 
-  rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
-  if (rtz != Qnil) {
-    if (rtz == spg_sym_local) {
-      tz += SPG_APP_LOCAL;
-    } else if (rtz == spg_sym_utc) {
-      tz += SPG_APP_UTC;
-    } else {
-      return rb_funcall(db, spg_id_to_application_timestamp, 1, rb_str_new2(s)); 
-    }
+  if (remaining < 19) {
+    return spg_timestamp_error(s, self, "unexpected timetamp format, too short");
   }
 
-  if (0 != strchr(s, '.')) {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d.%n%d%n%c%02d:%02d:%02d", 
-        &year, &month, &day, &hour, &min, &sec,
-        &usec_start, &usec, &usec_stop, 
-        &offset_sign, &offset_hour, &offset_minute, &offset_seconds);
-    if(tokens < 7) {
-      return spg_timestamp_error(s, self, "unexpected datetime format");
+  year = str4_to_int(p);
+  p += 4;
+  remaining -= 4;
+  if (isdigit(*p)) {
+    year = 10 * year + char_to_digit(*p);
+    p++;
+    remaining--;
+  }
+  if (isdigit(*p)) {
+    year = 10 * year + char_to_digit(*p);
+    p++;
+    remaining--;
+  }
+
+  if (remaining >= 15 && p[0] == '-' && p[3] == '-' && p[6] == ' ' && p[9] == ':' && p[12] == ':') {
+    month = str2_to_int(p+1);
+    day = str2_to_int(p+4);
+    hour = str2_to_int(p+7);
+    min = str2_to_int(p+10);
+    sec = str2_to_int(p+13);
+    p += 15;
+    remaining -= 15;
+
+    if (remaining >= 2 && p[0] == '.') {
+      /* microsecond part, up to 6 digits */
+      static const int coef[6] = { 100000, 10000, 1000, 100, 10, 1 };
+
+      p++;
+      remaining--;
+      for (i = 0; i < 6 && isdigit(*p); i++)
+      {
+        usec += coef[i] * char_to_digit(*p++);
+        remaining--;
+      }
     }
-    usec *= (int) pow(10, (6 - (usec_stop - usec_start)));
+
+    if ((tz & SPG_HAS_TIMEZONE) && remaining >= 3 && (p[0] == '+' || p[0] == '-')) {
+      offset_sign = p[0];
+      offset_seconds += str2_to_int(p+1)*3600;
+      p += 3;
+      remaining -= 3;
+
+      if (p[0] == ':') {
+        p++;
+        remaining--;
+      }
+      if (remaining >= 2 && isdigit(p[0]) && isdigit(p[1]))
+      {
+        offset_seconds += str2_to_int(p)*60;
+        p += 2;
+        remaining -= 2;
+      }
+      if (p[0] == ':')
+      {
+        p++;
+        remaining--;
+      }
+      if (remaining >= 2 && isdigit(p[0]) && isdigit(p[1]))
+      {
+        offset_seconds += str2_to_int(p);
+        p += 2;
+        remaining -= 2;
+      }
+      if (offset_sign == '-') {
+        offset_seconds *= -1;
+      }
+    }
+
+    if (remaining == 3 && p[0] == ' ' && p[1] == 'B' && p[2] == 'C') {
+      year = -year;
+      year++;
+    } else if (remaining != 0) {
+      return spg_timestamp_error(s, self, "unexpected timestamp format, remaining data left");
+    }
   } else {
-    tokens = sscanf(s, "%d-%2d-%2d %2d:%2d:%2d%c%02d:%02d:%02d", 
-        &year, &month, &day, &hour, &min, &sec,
-        &offset_sign, &offset_hour, &offset_minute, &offset_seconds);
-    if (tokens == 3) {
-      hour = 0;
-      min = 0;
-      sec = 0;
-    } else if (tokens < 6) {
-      return spg_timestamp_error(s, self, "unexpected datetime format");
+    return spg_timestamp_error(s, self, "unexpected timestamp format");
+  }
+  
+
+  if (tz & SPG_USE_TIME) {
+#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(HAVE_TIMEGM)
+    /* Fast path for time conversion */
+    struct tm tm;
+    struct timespec ts;
+    time_t time;
+
+    tm.tm_year = year - 1900;
+    tm.tm_mon = month - 1;
+    tm.tm_mday = day;
+    tm.tm_hour = hour;
+    tm.tm_min = min;
+    tm.tm_sec = sec;
+    tm.tm_isdst = -1;
+
+    ts.tv_nsec = usec*1000;
+
+    if (offset_sign) {
+      time = timegm(&tm);
+      if (time != -1) {
+        ts.tv_sec = time - offset_seconds;
+        dt = rb_time_timespec_new(&ts, offset_seconds);
+
+        if (tz & SPG_APP_UTC) {
+          dt = rb_funcall(dt, spg_id_utc, 0);
+        } else if (tz & SPG_APP_LOCAL) {
+          dt = rb_funcall(dt, spg_id_local, 0);
+        } 
+
+        return dt;
+      }
+    } else {
+      time = mktime(&tm);
+      if (time != -1) {
+        ts.tv_sec = time;
+        if (tz & SPG_DB_UTC) {
+          offset_seconds = INT_MAX - 1;
+        } else {
+          offset_seconds = INT_MAX;
+        }
+
+        dt = rb_time_timespec_new(&ts, offset_seconds);
+
+        if (tz & SPG_DB_LOCAL && tz & SPG_APP_UTC) {
+          dt = rb_funcall(dt, spg_id_utc, 0);
+        } else if (tz & SPG_DB_UTC && tz & SPG_APP_LOCAL) {
+          dt = rb_funcall(dt, spg_id_local, 0);
+        } 
+
+        return dt;
+      }
     }
-    usec = 0;
-  }
+#endif
 
-  len = strlen(s);
-  if(s[len-3] == ' ' && s[len-2] == 'B' && s[len-1] == 'C') {
-    year = -year;
-    year++;
-  }
-
-  if (offset_sign == '-') {
-    offset_hour *= -1;
-    offset_minute *= -1;
-    offset_seconds *= -1;
-  }
-
-  dtc = rb_funcall(spg_Sequel, spg_id_datetime_class, 0);
-
-  if (dtc == rb_cTime) {
     if (offset_sign) {
       /* Offset given, convert to local time if not already in local time.
        * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
        */
       dt = rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
       utc_offset = NUM2INT(rb_funcall(dt, spg_id_utc_offset, 0));
-      offset_seconds += offset_hour * 3600 + offset_minute * 60;
       if (utc_offset != offset_seconds) {
         dt = rb_funcall(dt, spg_id_op_plus, 1, INT2NUM(utc_offset - offset_seconds));
       }
@@ -506,12 +613,14 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
     }
   } else {
     /* datetime.class == DateTime */
+    double offset_fraction;
+
     if (offset_sign) {
       /* Offset given, handle correct local time.
        * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
        */
-      offset_fraction = offset_hour/24.0 + offset_minute/SPG_MINUTES_PER_DAY + offset_seconds/SPG_SECONDS_PER_DAY;
-      dt = rb_funcall(dtc, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
+      offset_fraction = offset_seconds/(double)SPG_SECONDS_PER_DAY;
+      dt = rb_funcall(spg_DateTime, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
       SPG_DT_ADD_USEC
 
       if (tz & SPG_APP_LOCAL) {
@@ -522,7 +631,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
       } 
       return dt;
     } else if (tz == SPG_NO_TZ) {
-      dt = rb_funcall(dtc, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
       SPG_DT_ADD_USEC
       return dt;
     }
@@ -530,7 +639,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
     /* No offset given, and some timezone combination given */
     if (tz & SPG_DB_LOCAL) {
       offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
-      dt = rb_funcall(dtc, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
       SPG_DT_ADD_USEC
       if (tz & SPG_APP_UTC) {
         return rb_funcall(dt, spg_id_new_offset, 1, INT2NUM(0));
@@ -538,7 +647,7 @@ static VALUE spg_timestamp(const char *s, VALUE self) {
         return dt;
       }
     } else {
-      dt = rb_funcall(dtc, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
       SPG_DT_ADD_USEC
       if (tz & SPG_APP_LOCAL) {
         offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
@@ -597,7 +706,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       break;
     case 1114: /* timestamp */
     case 1184:
-      rv = spg_timestamp(v, db);
+      rv = spg_timestamp(v, db, length, (int)converter);
       break;
     case 18: /* char */
     case 25: /* text */
@@ -627,6 +736,41 @@ static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, V
 
   args[0] = read_array(&index, c_pg_array_string, array_string_length, rb_str_buf_new(array_string_length), converter, enc_index, oid, self);
   return rb_class_new_instance(2, args, spg_PGArray);
+}
+
+static int spg_timestamp_info_bitmask(VALUE self) {
+  VALUE db, rtz;
+  int tz = SPG_NO_TZ;
+
+  db = rb_funcall(self, spg_id_db, 0);
+  rtz = rb_funcall(db, spg_id_timezone, 0);
+  if (rtz != Qnil) {
+    if (rtz == spg_sym_local) {
+      tz += SPG_DB_LOCAL;
+    } else if (rtz == spg_sym_utc) {
+      tz += SPG_DB_UTC;
+    } else {
+      tz += SPG_DB_CUSTOM;
+    }
+  }
+
+  rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
+  if (rtz != Qnil) {
+    if (rtz == spg_sym_local) {
+      tz += SPG_APP_LOCAL;
+    } else if (rtz == spg_sym_utc) {
+      tz += SPG_APP_UTC;
+    } else {
+      tz += SPG_APP_CUSTOM;
+    }
+  }
+
+  if (rb_cTime == rb_funcall(spg_Sequel, spg_id_datetime_class, 0)) {
+    tz += SPG_USE_TIME;
+  }
+
+  tz += SPG_TZ_INITIALIZED;
+  return tz;
 }
 
 static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* colconvert, int enc_index) {
@@ -681,7 +825,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         break;
       case 1114: /* timestamp */
       case 1184:
-        rv = spg_timestamp(v, self);
+        rv = spg_timestamp(v, self, PQgetlength(res, i, j), (int)colconvert[j]);
         break;
       case 18: /* char */
       case 25: /* text */
@@ -824,7 +968,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
             scalar_oid = 22;
             break;
         }
-        rv = spg_array_value(v, PQgetlength(res, i, j), Qnil, enc_index, scalar_oid, self, array_type);
+        rv = spg_array_value(v, PQgetlength(res, i, j), colconvert[j], enc_index, scalar_oid, self, array_type);
         break;
       default:
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
@@ -877,6 +1021,7 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
   long i;
   long j;
   long nfields;
+  int tz_info = 0;
   VALUE conv_procs = 0;
 
   nfields = PQnfields(res);
@@ -885,6 +1030,7 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
     colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, rb_str_new2(PQfname(res, j)));
     i = PQftype(res, j);
     switch (i) {
+      /* scalar types */
       case 16:
       case 17:
       case 20:
@@ -898,12 +1044,45 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
       case 1082:
       case 1083:
       case 1266:
-      case 1114:
-      case 1184:
       case 18:
       case 25:
       case 1043:
+      /* array types */
+      case 1009:
+      case 1014:
+      case 1015:
+      case 1007:
+      case 1183:
+      case 1270:
+      case 1016:
+      case 1231:
+      case 1022:
+      case 1000:
+      case 1001:
+      case 1182:
+      case 1005:
+      case 1028:
+      case 1021:
+      case 143:
+      case 791:
+      case 1561:
+      case 1563:
+      case 2951:
+      case 1011:
+      case 1012:
+      case 1003:
+      case 1010:
         colconvert[j] = Qnil;
+        break;
+      /* timestamp types */
+      case 1115:
+      case 1185:
+      case 1114:
+      case 1184:
+        if (tz_info == 0) {
+          tz_info = spg_timestamp_info_bitmask(self);
+        }
+        colconvert[j] = (VALUE)((i == 1184 || i == 1185) ? (tz_info + SPG_HAS_TIMEZONE) : tz_info);
         break;
       default:
         if (conv_procs == 0) {
@@ -1393,6 +1572,7 @@ void Init_sequel_pg(void) {
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_Kernel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Kernel")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
+  spg_DateTime = rb_funcall(rb_cObject, cg, 1, rb_str_new2("DateTime")); 
   spg_PGError = rb_funcall(rb_funcall(rb_cObject, cg, 1, rb_str_new2("PG")), cg, 1, rb_str_new2("Error"));
 
   spg_nan = rb_eval_string("0.0/0.0");
@@ -1404,6 +1584,7 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_Blob);
   rb_global_variable(&spg_Kernel);
   rb_global_variable(&spg_Date);
+  rb_global_variable(&spg_DateTime);
   rb_global_variable(&spg_SQLTime);
   rb_global_variable(&spg_PGError);
   rb_global_variable(&spg_nan);

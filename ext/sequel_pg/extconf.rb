@@ -6,6 +6,7 @@ dir_config('pg', ENV["POSTGRES_INCLUDE"] || (IO.popen("pg_config --includedir").
 
 if (have_library('pq') || have_library('libpq') || have_library('ms/libpq')) && have_header('libpq-fe.h')
   have_func 'PQsetSingleRowMode'
+  have_func 'timegm'
   create_makefile("sequel_pg")
 else
   puts 'Could not find PostgreSQL build environment (libraries & headers): Makefile not created'
