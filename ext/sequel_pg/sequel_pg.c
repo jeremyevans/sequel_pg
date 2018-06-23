@@ -109,6 +109,7 @@ static VALUE spg_usec_per_day;
 
 static ID spg_id_BigDecimal;
 static ID spg_id_new;
+static ID spg_id_date;
 static ID spg_id_local;
 static ID spg_id_year;
 static ID spg_id_month;
@@ -775,7 +776,7 @@ static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, V
 
 static int spg_time_info_bitmask(void) {
   int info = 0;
-  VALUE now = rb_funcall(spg_SQLTime, spg_id_new, 0);
+  VALUE now = rb_funcall(spg_SQLTime, spg_id_date, 0);
 
   info = NUM2INT(rb_funcall(now, spg_id_year, 0)) << SPG_YEAR_SHIFT;
   info += NUM2INT(rb_funcall(now, spg_id_month, 0)) << SPG_MONTH_SHIFT;
@@ -1556,6 +1557,7 @@ void Init_sequel_pg(void) {
 
   spg_id_BigDecimal = rb_intern("BigDecimal");
   spg_id_new = rb_intern("new");
+  spg_id_date = rb_intern("date");
   spg_id_local = rb_intern("local");
   spg_id_year = rb_intern("year");
   spg_id_month = rb_intern("month");

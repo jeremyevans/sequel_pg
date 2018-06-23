@@ -16,7 +16,7 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.license = 'MIT'
   s.extensions << 'ext/sequel_pg/extconf.rb'
   s.add_dependency("pg", [">= 0.18.0"])
-  s.add_dependency("sequel", [">= 4.34.0"])
+  s.add_dependency("sequel", [">= 4.38.0"])
   s.description = <<END
 sequel_pg overwrites the inner loop of the Sequel postgres
 adapter row fetching code with a C version.  The C version

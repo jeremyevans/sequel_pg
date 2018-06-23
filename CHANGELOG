@@ -1,5 +1,7 @@
 === master
 
+* Respect Sequel::SQLTime.date setting when parsing values for time and timetz columns (jeremyevans)
+
 * Improve performance of time parsing (jeremyevans)
 
 * Improve performance of date parsing (jeremyevans)
