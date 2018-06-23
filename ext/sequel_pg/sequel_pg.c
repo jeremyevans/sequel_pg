@@ -1179,7 +1179,6 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   if (!RTEST(rres)) {
     return self;
   }
-  Check_Type(rres, T_DATA);
   res = pgresult_get(rres);
 
   int enc_index;
@@ -1419,7 +1418,6 @@ static VALUE spg_supports_streaming_p(VALUE self) {
 #if HAVE_PQSETSINGLEROWMODE
 static VALUE spg_set_single_row_mode(VALUE self) {
   PGconn *conn;
-  Check_Type(self, T_DATA);
   conn = pg_get_pgconn(self);
   if (PQsetSingleRowMode(conn) != 1) {
       rb_raise(spg_PGError, "cannot set single row mode");
@@ -1444,7 +1442,6 @@ static VALUE spg__yield_each_row(VALUE self) {
 
   rconn = rb_ary_entry(self, 1);
   self = rb_ary_entry(self, 0);
-  Check_Type(rconn, T_DATA);
   conn = pg_get_pgconn(rconn);
 
   rres = rb_funcall(rconn, spg_id_get_result, 0);
@@ -1452,7 +1449,6 @@ static VALUE spg__yield_each_row(VALUE self) {
     goto end_yield_each_row;
   }
   rb_funcall(rres, spg_id_check, 0);
-  Check_Type(rres, T_DATA);
   res = pgresult_get(rres);
 
   int enc_index;
@@ -1500,7 +1496,6 @@ static VALUE spg__yield_each_row(VALUE self) {
       goto end_yield_each_row;
     }
     rb_funcall(rres, spg_id_check, 0);
-    Check_Type(rres, T_DATA);
     res = pgresult_get(rres);
   }
   rb_funcall(rres, spg_id_clear, 0);
@@ -1513,7 +1508,6 @@ static VALUE spg__flush_results(VALUE rconn) {
   PGconn *conn;
   PGresult *res;
   VALUE error = 0;
-  Check_Type(rconn, T_DATA);
   conn = pg_get_pgconn(rconn);
 
   while ((res = PQgetResult(conn)) != NULL) {
