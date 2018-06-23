@@ -392,21 +392,6 @@ static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_ms
   rb_raise(rb_eArgError, "%s", error_msg);
 }
 
-static VALUE spg_date(const char *s, VALUE self) {
-  int year, month, day;
-
-  if(3 != sscanf(s, "%d-%2d-%2d", &year, &month, &day)) {
-    return spg_timestamp_error(s, self, "unexpected date format");
-  }
-
-  if(s[10] == ' ' && s[11] == 'B' && s[12] == 'C') {
-    year = -year;
-    year++;
-  }
-
-  return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
-}
-
 static inline int char_to_digit(char c)
 {
   return c - '0';
@@ -436,20 +421,38 @@ static int parse_year(const char **str, size_t *length) {
   p += 4;
   remaining -= 4;
 
-  if (isdigit(*p)) {
+  for(int i = 0; isdigit(*p) && i < 3; i++, p++, remaining--) {
     year = 10 * year + char_to_digit(*p);
-    p++;
-    remaining--;
-  }
-  if (isdigit(*p)) {
-    year = 10 * year + char_to_digit(*p);
-    p++;
-    remaining--;
   }
 
   *str = p;
   *length = remaining;
   return year;
+}
+
+static VALUE spg_date(const char *s, VALUE self, size_t length) {
+  int year, month, day;
+  const char *p = s;
+
+  if (length < 10) {
+    return spg_timestamp_error(s, self, "unexpected date format, too short");
+  }
+
+  year = parse_year(&p, &length);
+
+  if (length >= 5 && p[0] == '-' && p[3] == '-') {
+    month = str2_to_int(p+1);
+    day = str2_to_int(p+4);
+  } else {
+    return spg_timestamp_error(s, self, "unexpected date format");
+  }
+
+  if(s[10] == ' ' && s[11] == 'B' && s[12] == 'C') {
+    year = -year;
+    year++;
+  }
+
+  return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
 }
 
 static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
@@ -712,7 +715,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       rv = rb_funcall(spg_Kernel, spg_id_BigDecimal, 1, rb_str_new(v, length));
       break;
     case 1082: /* date */
-      rv = spg_date(v, db);
+      rv = spg_date(v, db, length);
       break;
     case 1083: /* time */
     case 1266:
@@ -831,7 +834,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         rv = rb_funcall(spg_Kernel, spg_id_BigDecimal, 1, rb_str_new(v, PQgetlength(res, i, j)));
         break;
       case 1082: /* date */
-        rv = spg_date(v, self);
+        rv = spg_date(v, self, PQgetlength(res, i, j));
         break;
       case 1083: /* time */
       case 1266:
