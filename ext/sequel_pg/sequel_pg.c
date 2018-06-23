@@ -426,6 +426,32 @@ static int str2_to_int(const char *str)
       + char_to_digit(str[1]);
 }
 
+/* Caller should check length is at least 4 */
+static int parse_year(const char **str, size_t *length) {
+  int year;
+  size_t remaining = *length;
+  const char * p = *str;
+
+  year = str4_to_int(p);
+  p += 4;
+  remaining -= 4;
+
+  if (isdigit(*p)) {
+    year = 10 * year + char_to_digit(*p);
+    p++;
+    remaining--;
+  }
+  if (isdigit(*p)) {
+    year = 10 * year + char_to_digit(*p);
+    p++;
+    remaining--;
+  }
+
+  *str = p;
+  *length = remaining;
+  return year;
+}
+
 static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
   VALUE dt;
   int year, month, day, hour, min, sec, utc_offset;
@@ -444,19 +470,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
     return spg_timestamp_error(s, self, "unexpected timetamp format, too short");
   }
 
-  year = str4_to_int(p);
-  p += 4;
-  remaining -= 4;
-  if (isdigit(*p)) {
-    year = 10 * year + char_to_digit(*p);
-    p++;
-    remaining--;
-  }
-  if (isdigit(*p)) {
-    year = 10 * year + char_to_digit(*p);
-    p++;
-    remaining--;
-  }
+  year = parse_year(&p, &remaining);
 
   if (remaining >= 15 && p[0] == '-' && p[3] == '-' && p[6] == ' ' && p[9] == ':' && p[12] == ':') {
     month = str2_to_int(p+1);
