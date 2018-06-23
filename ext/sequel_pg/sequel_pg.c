@@ -34,7 +34,8 @@
 #define SPG_YEAR_SHIFT  16
 #define SPG_MONTH_SHIFT 8
 #define SPG_MONTH_MASK  0x0000ffff
-#define SPG_DAY_MASK    0x000000ff
+#define SPG_DAY_MASK    0x0000001f
+#define SPG_TIME_UTC    32
 
 #define SPG_YIELD_NORMAL 0
 #define SPG_YIELD_COLUMN 1
@@ -397,6 +398,7 @@ static int str2_to_int(const char *str)
 static VALUE spg_time(const char *p, size_t length, int current) {
   int hour, minute, second, i;
   int usec = 0;
+  ID meth = spg_id_local;
 
   if (length < 8) {
     rb_raise(rb_eArgError, "unexpected time format, too short");
@@ -420,7 +422,10 @@ static VALUE spg_time(const char *p, size_t length, int current) {
     rb_raise(rb_eArgError, "unexpected time format");
   }
 
-  return rb_funcall(spg_SQLTime, spg_id_local, 7,
+  if (current & SPG_TIME_UTC) {
+    meth = spg_id_utc;
+  }
+  return rb_funcall(spg_SQLTime, meth, 7,
     INT2NUM(current >> SPG_YEAR_SHIFT),
     INT2NUM((current & SPG_MONTH_MASK) >> SPG_MONTH_SHIFT),
     INT2NUM(current & SPG_DAY_MASK),
@@ -781,6 +786,10 @@ static int spg_time_info_bitmask(void) {
   info = NUM2INT(rb_funcall(now, spg_id_year, 0)) << SPG_YEAR_SHIFT;
   info += NUM2INT(rb_funcall(now, spg_id_month, 0)) << SPG_MONTH_SHIFT;
   info += NUM2INT(rb_funcall(now, spg_id_day, 0));
+
+  if (rb_funcall(spg_Sequel, spg_id_application_timezone, 0) == spg_sym_utc) {
+    info += SPG_TIME_UTC;
+  }
 
   return info;
 }
