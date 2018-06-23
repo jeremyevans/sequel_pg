@@ -1,5 +1,7 @@
 === master
 
+* Improve performance of time parsing (jeremyevans)
+
 * Improve performance of date parsing (jeremyevans)
 
 * Improve performance of timestamp parsing by borrowing and optimizing ruby-pg's parser (jeremyevans)

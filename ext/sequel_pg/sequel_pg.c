@@ -31,6 +31,11 @@
 #define SPG_USE_TIME       (1<<5)
 #define SPG_HAS_TIMEZONE   (1<<6)
 
+#define SPG_YEAR_SHIFT  16
+#define SPG_MONTH_SHIFT 8
+#define SPG_MONTH_MASK  0x0000ffff
+#define SPG_DAY_MASK    0x000000ff
+
 #define SPG_YIELD_NORMAL 0
 #define SPG_YIELD_COLUMN 1
 #define SPG_YIELD_COLUMNS 2
@@ -359,29 +364,6 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
     Qnil);
 }
 
-static VALUE spg_time(const char *s) {
-  VALUE now;
-  int hour, minute, second, tokens, i;
-  char subsec[7];
-  int usec = 0;
-
-  tokens = sscanf(s, "%2d:%2d:%2d.%6s", &hour, &minute, &second, subsec);
-  if(tokens == 4) {
-    for(i=0; i<6; i++) {
-      if(subsec[i] == '-') {
-        subsec[i] = '\0';
-      }
-    }
-    usec = atoi(subsec);
-    usec *= (int) pow(10, (6 - strlen(subsec)));
-  } else if(tokens < 3) {
-    rb_raise(rb_eArgError, "unexpected time format");
-  }
-
-  now = rb_funcall(spg_SQLTime, spg_id_new, 0);
-  return rb_funcall(spg_SQLTime, spg_id_local, 7, rb_funcall(now, spg_id_year, 0), rb_funcall(now, spg_id_month, 0), rb_funcall(now, spg_id_day, 0), INT2NUM(hour), INT2NUM(minute), INT2NUM(second), INT2NUM(usec));
-}
-
 static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_msg) {
   self = rb_funcall(self, spg_id_db, 0);
   if(RTEST(rb_funcall(self, spg_id_convert_infinite_timestamps, 0))) {
@@ -409,6 +391,42 @@ static int str2_to_int(const char *str)
 {
   return char_to_digit(str[0]) * 10
       + char_to_digit(str[1]);
+}
+
+static VALUE spg_time(const char *p, size_t length, int current) {
+  int hour, minute, second, i;
+  int usec = 0;
+
+  if (length < 8) {
+    rb_raise(rb_eArgError, "unexpected time format, too short");
+  }
+
+  if (p[2] == ':' && p[5] == ':') {
+    hour = str2_to_int(p);
+    minute = str2_to_int(p+3);
+    second = str2_to_int(p+6);
+    p += 8;
+
+    if (length >= 10 && p[0] == '.') {
+      static const int coef[6] = { 100000, 10000, 1000, 100, 10, 1 };
+
+      p++;
+      for (i = 0; i < 6 && isdigit(*p); i++) {
+        usec += coef[i] * char_to_digit(*p++);
+      }
+    }
+  } else {
+    rb_raise(rb_eArgError, "unexpected time format");
+  }
+
+  return rb_funcall(spg_SQLTime, spg_id_local, 7,
+    INT2NUM(current >> SPG_YEAR_SHIFT),
+    INT2NUM((current & SPG_MONTH_MASK) >> SPG_MONTH_SHIFT),
+    INT2NUM(current & SPG_DAY_MASK),
+    INT2NUM(hour),
+    INT2NUM(minute),
+    INT2NUM(second),
+    INT2NUM(usec));
 }
 
 /* Caller should check length is at least 4 */
@@ -719,7 +737,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       break;
     case 1083: /* time */
     case 1266:
-      rv = spg_time(v);
+      rv = spg_time(v, length, (int)converter);
       break;
     case 1114: /* timestamp */
     case 1184:
@@ -753,6 +771,17 @@ static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, V
 
   args[0] = read_array(&index, c_pg_array_string, array_string_length, rb_str_buf_new(array_string_length), converter, enc_index, oid, self);
   return rb_class_new_instance(2, args, spg_PGArray);
+}
+
+static int spg_time_info_bitmask(void) {
+  int info = 0;
+  VALUE now = rb_funcall(spg_SQLTime, spg_id_new, 0);
+
+  info = NUM2INT(rb_funcall(now, spg_id_year, 0)) << SPG_YEAR_SHIFT;
+  info += NUM2INT(rb_funcall(now, spg_id_month, 0)) << SPG_MONTH_SHIFT;
+  info += NUM2INT(rb_funcall(now, spg_id_day, 0));
+
+  return info;
 }
 
 static int spg_timestamp_info_bitmask(VALUE self) {
@@ -838,7 +867,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         break;
       case 1083: /* time */
       case 1266:
-        rv = spg_time(v);
+        rv = spg_time(v, PQgetlength(res, i, j), (int)colconvert[j]);
         break;
       case 1114: /* timestamp */
       case 1184:
@@ -1038,7 +1067,8 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
   long i;
   long j;
   long nfields;
-  int tz_info = 0;
+  int timestamp_info = 0;
+  int time_info = 0;
   VALUE conv_procs = 0;
 
   nfields = PQnfields(res);
@@ -1059,8 +1089,6 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
       case 790:
       case 1700:
       case 1082:
-      case 1083:
-      case 1266:
       case 18:
       case 25:
       case 1043:
@@ -1069,8 +1097,6 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
       case 1014:
       case 1015:
       case 1007:
-      case 1183:
-      case 1270:
       case 1016:
       case 1231:
       case 1022:
@@ -1091,16 +1117,29 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
       case 1010:
         colconvert[j] = Qnil;
         break;
+
+      /* time types */
+      case 1183:
+      case 1083:
+      case 1270:
+      case 1266:
+        if (time_info == 0) {
+          time_info = spg_time_info_bitmask();
+        }
+        colconvert[j] = time_info;
+        break;
+
       /* timestamp types */
       case 1115:
       case 1185:
       case 1114:
       case 1184:
-        if (tz_info == 0) {
-          tz_info = spg_timestamp_info_bitmask(self);
+        if (timestamp_info == 0) {
+          timestamp_info = spg_timestamp_info_bitmask(self);
         }
-        colconvert[j] = (VALUE)((i == 1184 || i == 1185) ? (tz_info + SPG_HAS_TIMEZONE) : tz_info);
+        colconvert[j] = (VALUE)((i == 1184 || i == 1185) ? (timestamp_info + SPG_HAS_TIMEZONE) : timestamp_info);
         break;
+
       default:
         if (conv_procs == 0) {
           conv_procs = rb_funcall(rb_funcall(self, spg_id_db, 0), spg_id_conversion_procs, 0);
