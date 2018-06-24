@@ -8,6 +8,9 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <time.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <string.h>
 
 #include <ruby/version.h>
 #include <ruby/encoding.h>
@@ -19,6 +22,21 @@
 #define SPG_SECONDS_PER_DAY 86400.0
 
 #define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, rb_Rational2(INT2NUM(usec), spg_usec_per_day)); }
+
+#ifndef RARRAY_AREF
+#define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
+#endif
+
+#define ntohll(c) ((uint64_t)( \
+    (((uint64_t)(*((unsigned char*)(c)+0)))<<56LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+1)))<<48LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+2)))<<40LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+3)))<<32LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+4)))<<24LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+5)))<<16LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+6)))<< 8LL) | \
+    (((uint64_t)(*((unsigned char*)(c)+7)))      ) \
+  ))
 
 #define SPG_DB_LOCAL       (1)
 #define SPG_DB_UTC         (1<<1)
@@ -51,9 +69,11 @@
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 
-/* External functions defined by ruby-pg when data objects are structs */
+/* External functions defined by ruby-pg */
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
+
+static int spg_use_ipaddr_alloc;
 
 static VALUE spg_Sequel;
 static VALUE spg_PGArray;
@@ -64,6 +84,9 @@ static VALUE spg_Date;
 static VALUE spg_DateTime;
 static VALUE spg_SQLTime;
 static VALUE spg_PGError;
+static VALUE spg_IPAddr;
+static VALUE spg_vmasks4;
+static VALUE spg_vmasks6;
 
 static VALUE spg_sym_utc;
 static VALUE spg_sym_local;
@@ -102,6 +125,8 @@ static VALUE spg_sym_cid;
 static VALUE spg_sym_name;
 static VALUE spg_sym_tid;
 static VALUE spg_sym_int2vector;
+static VALUE spg_sym_inet;
+static VALUE spg_sym_cidr;
 
 static VALUE spg_nan;
 static VALUE spg_pos_inf;
@@ -139,6 +164,12 @@ static ID spg_id_columns_equal;
 static ID spg_id_columns;
 static ID spg_id_encoding;
 static ID spg_id_values;
+
+static ID spg_id_lshift;
+static ID spg_id_mask;
+static ID spg_id_family;
+static ID spg_id_addr;
+static ID spg_id_mask_addr;
 
 #if HAVE_PQSETSINGLEROWMODE
 static ID spg_id_get_result;
@@ -703,6 +734,121 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
   }
 }
 
+static VALUE spg_inet(char *val, size_t len)
+{
+  VALUE ip;
+  VALUE ip_int;
+  VALUE vmasks;
+  char dst[16];
+  char buf[64];
+  int af = strchr(val, '.') ? AF_INET : AF_INET6;
+  int mask = -1;
+
+  if (len >= 64) {
+    rb_raise(rb_eTypeError, "unable to parse IP address, too long");
+  }
+
+  if (len >= 4) {
+    if (val[len-2] == '/') {
+      mask = val[len-1] - '0';
+      memcpy(buf, val, len-2);
+      val = buf;
+      val[len-2] = '\0';
+    } else if (val[len-3] == '/') {
+      mask = (val[len-2]- '0')*10 + val[len-1] - '0';
+      memcpy(buf, val, len-3);
+      val = buf;
+      val[len-3] = '\0';
+    } else if (val[len-4] == '/') {
+      mask = (val[len-3]- '0')*100 + (val[len-2]- '0')*10 + val[len-1] - '0';
+      memcpy(buf, val, len-4);
+      val = buf;
+      val[len-4] = '\0';
+    }
+  }
+
+  if (1 != inet_pton(af, val, dst)) {
+    rb_raise(rb_eTypeError, "unable to parse IP address: %s", val);
+  }
+
+  if (af == AF_INET) {
+    unsigned int ip_int_native;
+
+    if (mask == -1) {
+      mask = 32;
+    } else if (mask < 0 || mask > 32) {
+      rb_raise(rb_eTypeError, "invalid mask for IPv4: %d", mask);
+    }
+    vmasks = spg_vmasks4;
+
+    ip_int_native = ntohl(*(unsigned int *)dst);
+
+    /* Work around broken IPAddr behavior of convering portion
+       of address after netmask to 0 */
+    switch (mask) {
+      case 0:
+        ip_int_native = 0;
+        break;
+      case 32:
+        /* nothing to do */
+        break;
+      default:
+        ip_int_native &= ~((1UL<<(32-mask))-1);
+        break;
+    }
+    ip_int = UINT2NUM(ip_int_native);
+  } else {
+    unsigned long long * dstllp = (unsigned long long *)dst;
+    unsigned long long ip_int_native1;
+    unsigned long long ip_int_native2;
+
+    if (mask == -1) {
+      mask = 128;
+    } else if (mask < 0 || mask > 128) {
+      rb_raise(rb_eTypeError, "invalid mask for IPv6: %d", mask);
+    }
+    vmasks = spg_vmasks6;
+
+    ip_int_native1 = ntohll(dstllp);
+    dstllp++;
+    ip_int_native2 = ntohll(dstllp);
+
+    if (mask == 128) {
+      /* nothing to do */
+    } else if (mask == 64) {
+      ip_int_native2 = 0;
+    } else if (mask == 0) {
+      ip_int_native1 = 0;
+      ip_int_native2 = 0;
+    } else if (mask < 64) {
+      ip_int_native1 &= ~((1ULL<<(64-mask))-1);
+      ip_int_native2 = 0;
+    } else {
+      ip_int_native2 &= ~((1ULL<<(128-mask))-1);
+    }
+
+    /* 4 Bignum allocations */
+    ip_int = ULL2NUM(ip_int_native1);
+    ip_int = rb_funcall(ip_int, spg_id_lshift, 1, INT2NUM(64));
+    ip_int = rb_funcall(ip_int, spg_id_op_plus, 1, ULL2NUM(ip_int_native2));
+  }
+
+  if (spg_use_ipaddr_alloc) {
+    ip = rb_obj_alloc(spg_IPAddr);
+    rb_ivar_set(ip, spg_id_family, INT2NUM(af));
+    rb_ivar_set(ip, spg_id_addr, ip_int);
+    rb_ivar_set(ip, spg_id_mask_addr, RARRAY_AREF(vmasks, mask));
+  } else {
+    VALUE ip_args[2];
+    ip_args[0] = ip_int;
+    ip_args[1] = INT2NUM(af);
+    ip = rb_class_new_instance(2, ip_args, spg_IPAddr);
+    ip = rb_funcall(ip, spg_id_mask, 1, INT2NUM(mask));
+  }
+
+  return ip;
+}
+
 static VALUE spg_create_Blob(VALUE v) {
   struct spg_blob_initialization *bi = (struct spg_blob_initialization *)v;
   if (bi->blob_string == NULL) {
@@ -764,6 +910,10 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
     case 1043: /* varchar*/
       rv = rb_tainted_str_new(v, length);
       PG_ENCODING_SET_NOCHECK(rv, enc_index);
+      break;
+    case 869: /* inet */
+    case 650: /* cidr */
+      rv = spg_inet(v, length);
       break;
     default:
       rv = rb_tainted_str_new(v, length);
@@ -898,6 +1048,10 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
         PG_ENCODING_SET_NOCHECK(rv, enc_index);
         break;
+      case 869: /* inet */
+      case 650: /* cidr */
+        rv = spg_inet(v, PQgetlength(res, i, j));
+        break;
       /* array types */
       case 1009:
       case 1014:
@@ -926,6 +1080,8 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
       case 1003:
       case 1010:
       case 1006:
+      case 1041:
+      case 651:
         switch(ftype) {
           case 1009: 
           case 1014:
@@ -1031,6 +1187,14 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
           case 1006:
             array_type = spg_sym_int2vector;
             scalar_oid = 22;
+            break;
+          case 1041:
+            array_type = spg_sym_inet;
+            scalar_oid = 869;
+            break;
+          case 651:
+            array_type = spg_sym_cidr;
+            scalar_oid = 650;
             break;
         }
         rv = spg_array_value(v, PQgetlength(res, i, j), colconvert[j], enc_index, scalar_oid, self, array_type);
@@ -1600,6 +1764,12 @@ void Init_sequel_pg(void) {
   spg_id_encoding = rb_intern("@encoding");
   spg_id_values = rb_intern("@values");
 
+  spg_id_family = rb_intern("@family");
+  spg_id_addr = rb_intern("@addr");
+  spg_id_mask_addr = rb_intern("@mask_addr");
+  spg_id_lshift = rb_intern("<<");
+  spg_id_mask = rb_intern("mask");
+
   spg_sym_utc = ID2SYM(rb_intern("utc"));
   spg_sym_local = ID2SYM(rb_intern("local"));
   spg_sym_map = ID2SYM(rb_intern("map"));
@@ -1637,6 +1807,8 @@ void Init_sequel_pg(void) {
   spg_sym_name = ID2SYM(rb_intern("name"));
   spg_sym_tid = ID2SYM(rb_intern("tid"));
   spg_sym_int2vector = ID2SYM(rb_intern("int2vector"));
+  spg_sym_inet = ID2SYM(rb_intern("inet"));
+  spg_sym_cidr = ID2SYM(rb_intern("cidr"));
 
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
   spg_Blob_instance = rb_obj_freeze(rb_funcall(spg_Blob, spg_id_new, 0));
@@ -1663,6 +1835,15 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_pos_inf);
   rb_global_variable(&spg_neg_inf);
   rb_global_variable(&spg_usec_per_day);
+
+  rb_require("ipaddr");
+  spg_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
+  rb_global_variable(&spg_IPAddr);
+  spg_use_ipaddr_alloc = RTEST(rb_eval_string("IPAddr.new.instance_variables.sort == [:@addr, :@family, :@mask_addr]"));
+  spg_vmasks4 = rb_eval_string("a = [0]*33; a[0] = 0; a[32] = 0xffffffff; 31.downto(1){|i| a[i] = a[i+1] - (1 << (31 - i))}; a.freeze");
+  rb_global_variable(&spg_vmasks4);
+  spg_vmasks6 = rb_eval_string("a = [0]*129; a[0] = 0; a[128] = 0xffffffffffffffffffffffffffffffff; 127.downto(1){|i| a[i] = a[i+1] - (1 << (127 - i))}; a.freeze");
+  rb_global_variable(&spg_vmasks6);
 
   c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
   rb_undef_method(c, "yield_hash_rows");

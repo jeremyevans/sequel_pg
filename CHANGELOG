@@ -1,5 +1,7 @@
 === master
 
+* Add native inet/cidr parsers (jeremyevans)
+
 * Don't leak memory if unable to create a Sequel::SQL::Blob string when parsing bytea (jeremyevans)
 
 * Improve performance of bytea parsing (jeremyevans)
