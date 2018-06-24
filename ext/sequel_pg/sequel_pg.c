@@ -59,6 +59,7 @@ PGresult* pgresult_get(VALUE);
 static VALUE spg_Sequel;
 static VALUE spg_PGArray;
 static VALUE spg_Blob;
+static VALUE spg_Blob_instance;
 static VALUE spg_Kernel;
 static VALUE spg_Date;
 static VALUE spg_DateTime;
@@ -714,7 +715,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       break;
     case 17: /* bytea */
       v = (char *)PQunescapeBytea((unsigned char*)v, &l);
-      rv = rb_funcall(spg_Blob, spg_id_new, 1, rb_str_new(v, l));
+      rv = rb_obj_taint(rb_str_new_with_class(spg_Blob_instance, v, l));
       PQfreemem(v);
       break;
     case 20: /* integer */
@@ -848,7 +849,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         break;
       case 17: /* bytea */
         v = (char *)PQunescapeBytea((unsigned char*)v, &l);
-        rv = rb_funcall(spg_Blob, spg_id_new, 1, rb_str_new(v, l));
+        rv = rb_obj_taint(rb_str_new_with_class(spg_Blob_instance, v, l));
         PQfreemem(v);
         break;
       case 20: /* integer */
@@ -1630,6 +1631,7 @@ void Init_sequel_pg(void) {
   spg_sym_int2vector = ID2SYM(rb_intern("int2vector"));
 
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
+  spg_Blob_instance = rb_obj_freeze(rb_funcall(spg_Blob, spg_id_new, 0));
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
   spg_Kernel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Kernel")); 
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
@@ -1643,6 +1645,7 @@ void Init_sequel_pg(void) {
 
   rb_global_variable(&spg_Sequel);
   rb_global_variable(&spg_Blob);
+  rb_global_variable(&spg_Blob_instance);
   rb_global_variable(&spg_Kernel);
   rb_global_variable(&spg_Date);
   rb_global_variable(&spg_DateTime);

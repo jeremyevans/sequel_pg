@@ -1,5 +1,7 @@
 === master
 
+* Improve performance of bytea parsing (jeremyevans)
+
 * Respect Sequel.application_timezone setting when parsing values for time and timetz columns (jeremyevans)
 
 * Respect Sequel::SQLTime.date setting when parsing values for time and timetz columns (jeremyevans)
