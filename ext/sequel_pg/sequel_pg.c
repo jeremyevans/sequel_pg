@@ -20,16 +20,15 @@
 
 #define SPG_DT_ADD_USEC if (usec != 0) { dt = rb_funcall(dt, spg_id_op_plus, 1, rb_Rational2(INT2NUM(usec), spg_usec_per_day)); }
 
-#define SPG_NO_TZ          (0)
 #define SPG_DB_LOCAL       (1)
 #define SPG_DB_UTC         (1<<1)
-#define SPG_DB_CUSTOM      (1 + (1<<1))
-#define SPG_APP_LOCAL      (1<<2)
-#define SPG_APP_UTC        (1<<3)
-#define SPG_APP_CUSTOM     ((1<<2) + (1<<3))
-#define SPG_TZ_INITIALIZED (1<<4)
-#define SPG_USE_TIME       (1<<5)
-#define SPG_HAS_TIMEZONE   (1<<6)
+#define SPG_DB_CUSTOM      (1<<2)
+#define SPG_APP_LOCAL      (1<<3)
+#define SPG_APP_UTC        (1<<4)
+#define SPG_APP_CUSTOM     (1<<5)
+#define SPG_TZ_INITIALIZED (1<<6)
+#define SPG_USE_TIME       (1<<7)
+#define SPG_HAS_TIMEZONE   (1<<8)
 
 #define SPG_YEAR_SHIFT  16
 #define SPG_MONTH_SHIFT 8
@@ -602,24 +601,21 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
         return dt;
       }
     } else {
-      time = mktime(&tm);
+      if (tz & SPG_DB_UTC) {
+        time = timegm(&tm);
+      } else {
+        time = mktime(&tm);
+      }
+
       if (time != -1) {
         ts.tv_sec = time;
-        if (tz & SPG_DB_UTC) {
-          offset_seconds = INT_MAX - 1;
+        if (tz & SPG_APP_UTC) {
+          offset_seconds = INT_MAX-1;
         } else {
           offset_seconds = INT_MAX;
         }
 
-        dt = rb_time_timespec_new(&ts, offset_seconds);
-
-        if (tz & SPG_DB_LOCAL && tz & SPG_APP_UTC) {
-          dt = rb_funcall(dt, spg_id_utc, 0);
-        } else if (tz & SPG_DB_UTC && tz & SPG_APP_LOCAL) {
-          dt = rb_funcall(dt, spg_id_local, 0);
-        } 
-
-        return dt;
+        return rb_time_timespec_new(&ts, offset_seconds);
       }
     }
 #endif
@@ -638,7 +634,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
         dt = rb_funcall(dt, spg_id_utc, 0);
       } 
       return dt;
-    } else if (tz == SPG_NO_TZ) {
+    } else if (!(tz & (SPG_APP_LOCAL|SPG_DB_LOCAL|SPG_APP_UTC|SPG_DB_UTC))) {
       return rb_funcall(rb_cTime, spg_id_local, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), INT2NUM(usec));
     }
 
@@ -677,7 +673,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
         dt = rb_funcall(dt, spg_id_new_offset, 1, INT2NUM(0));
       } 
       return dt;
-    } else if (tz == SPG_NO_TZ) {
+    } else if (!(tz & (SPG_APP_LOCAL|SPG_DB_LOCAL|SPG_APP_UTC|SPG_DB_UTC))) {
       dt = rb_funcall(spg_DateTime, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
       SPG_DT_ADD_USEC
       return dt;
@@ -698,7 +694,8 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
       SPG_DT_ADD_USEC
       if (tz & SPG_APP_LOCAL) {
         offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
-        return rb_funcall(dt, spg_id_new_offset, 1, rb_float_new(offset_fraction));
+        dt = rb_funcall(dt, spg_id_new_offset, 1, rb_float_new(offset_fraction));
+        return dt;
       } else {
         return dt;
       }
@@ -809,36 +806,36 @@ static int spg_time_info_bitmask(void) {
 
 static int spg_timestamp_info_bitmask(VALUE self) {
   VALUE db, rtz;
-  int tz = SPG_NO_TZ;
+  int tz = 0;
 
   db = rb_funcall(self, spg_id_db, 0);
   rtz = rb_funcall(db, spg_id_timezone, 0);
   if (rtz != Qnil) {
     if (rtz == spg_sym_local) {
-      tz += SPG_DB_LOCAL;
+      tz |= SPG_DB_LOCAL;
     } else if (rtz == spg_sym_utc) {
-      tz += SPG_DB_UTC;
+      tz |= SPG_DB_UTC;
     } else {
-      tz += SPG_DB_CUSTOM;
+      tz |= SPG_DB_CUSTOM;
     }
   }
 
   rtz = rb_funcall(spg_Sequel, spg_id_application_timezone, 0);
   if (rtz != Qnil) {
     if (rtz == spg_sym_local) {
-      tz += SPG_APP_LOCAL;
+      tz |= SPG_APP_LOCAL;
     } else if (rtz == spg_sym_utc) {
-      tz += SPG_APP_UTC;
+      tz |= SPG_APP_UTC;
     } else {
-      tz += SPG_APP_CUSTOM;
+      tz |= SPG_APP_CUSTOM;
     }
   }
 
   if (rb_cTime == rb_funcall(spg_Sequel, spg_id_datetime_class, 0)) {
-    tz += SPG_USE_TIME;
+    tz |= SPG_USE_TIME;
   }
 
-  tz += SPG_TZ_INITIALIZED;
+  tz |= SPG_TZ_INITIALIZED;
   return tz;
 }
 
@@ -1159,7 +1156,7 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
         if (timestamp_info == 0) {
           timestamp_info = spg_timestamp_info_bitmask(self);
         }
-        colconvert[j] = (VALUE)((i == 1184 || i == 1185) ? (timestamp_info + SPG_HAS_TIMEZONE) : timestamp_info);
+        colconvert[j] = (VALUE)((i == 1184 || i == 1185) ? (timestamp_info | SPG_HAS_TIMEZONE) : timestamp_info);
         break;
 
       default:
