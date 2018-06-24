@@ -1722,6 +1722,7 @@ void Init_sequel_pg(void) {
 
   spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
   spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
+  rb_global_variable(&spg_Sequel);
 
   if(rb_obj_respond_to(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 0)) {
     if(!RTEST(rb_funcall(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 1, INT2FIX(SEQUEL_PG_VERSION_INTEGER)))) {
@@ -1811,29 +1812,27 @@ void Init_sequel_pg(void) {
   spg_sym_cidr = ID2SYM(rb_intern("cidr"));
 
   spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
+  rb_global_variable(&spg_Blob);
   spg_Blob_instance = rb_obj_freeze(rb_funcall(spg_Blob, spg_id_new, 0));
+  rb_global_variable(&spg_Blob_instance);
   spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
+  rb_global_variable(&spg_SQLTime);
   spg_Kernel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Kernel")); 
+  rb_global_variable(&spg_Kernel);
   spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
+  rb_global_variable(&spg_Date);
   spg_DateTime = rb_funcall(rb_cObject, cg, 1, rb_str_new2("DateTime")); 
+  rb_global_variable(&spg_DateTime);
   spg_PGError = rb_funcall(rb_funcall(rb_cObject, cg, 1, rb_str_new2("PG")), cg, 1, rb_str_new2("Error"));
+  rb_global_variable(&spg_PGError);
 
   spg_nan = rb_eval_string("0.0/0.0");
-  spg_pos_inf = rb_eval_string("1.0/0.0");
-  spg_neg_inf = rb_eval_string("-1.0/0.0");
-  spg_usec_per_day = ULL2NUM(86400000000ULL);
-
-  rb_global_variable(&spg_Sequel);
-  rb_global_variable(&spg_Blob);
-  rb_global_variable(&spg_Blob_instance);
-  rb_global_variable(&spg_Kernel);
-  rb_global_variable(&spg_Date);
-  rb_global_variable(&spg_DateTime);
-  rb_global_variable(&spg_SQLTime);
-  rb_global_variable(&spg_PGError);
   rb_global_variable(&spg_nan);
+  spg_pos_inf = rb_eval_string("1.0/0.0");
   rb_global_variable(&spg_pos_inf);
+  spg_neg_inf = rb_eval_string("-1.0/0.0");
   rb_global_variable(&spg_neg_inf);
+  spg_usec_per_day = ULL2NUM(86400000000ULL);
   rb_global_variable(&spg_usec_per_day);
 
   rb_require("ipaddr");
