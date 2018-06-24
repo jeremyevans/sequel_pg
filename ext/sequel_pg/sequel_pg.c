@@ -147,6 +147,11 @@ static ID spg_id_clear;
 static ID spg_id_check;
 #endif
 
+struct spg_blob_initialization {
+  char *blob_string;
+  size_t length;
+};
+
 static int enc_get_index(VALUE val) {
   int i = ENCODING_GET_INLINED(val);
   if (i == ENCODING_INLINE_MAX) {
@@ -701,22 +706,29 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
   }
 }
 
+static VALUE spg_create_Blob(VALUE v) {
+  struct spg_blob_initialization *bi = (struct spg_blob_initialization *)v;
+  if (bi->blob_string == NULL) {
+    rb_raise(rb_eNoMemError, "PQunescapeBytea failure: probably not enough memory");
+  }
+  return rb_obj_taint(rb_str_new_with_class(spg_Blob_instance, bi->blob_string, bi->length));
+}
+
 static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
   return Qnil;
 }
 
 static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int enc_index, int oid, VALUE db) {
   VALUE rv;
-  size_t l;
+  struct spg_blob_initialization bi;
 
   switch(oid) {
     case 16: /* boolean */
       rv = *v == 't' ? Qtrue : Qfalse;
       break;
     case 17: /* bytea */
-      v = (char *)PQunescapeBytea((unsigned char*)v, &l);
-      rv = rb_obj_taint(rb_str_new_with_class(spg_Blob_instance, v, l));
-      PQfreemem(v);
+      bi.blob_string = (char *)PQunescapeBytea((unsigned char*)v, &bi.length);
+      rv = rb_ensure(spg_create_Blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
       break;
     case 20: /* integer */
     case 21:
@@ -833,10 +845,10 @@ static int spg_timestamp_info_bitmask(VALUE self) {
 static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* colconvert, int enc_index) {
   char *v;
   VALUE rv;
-  size_t l;
   int ftype = PQftype(res, j);
   VALUE array_type;
   VALUE scalar_oid;
+  struct spg_blob_initialization bi;
 
   if(PQgetisnull(res, i, j)) {
     rv = Qnil;
@@ -848,9 +860,8 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         rv = *v == 't' ? Qtrue : Qfalse;
         break;
       case 17: /* bytea */
-        v = (char *)PQunescapeBytea((unsigned char*)v, &l);
-        rv = rb_obj_taint(rb_str_new_with_class(spg_Blob_instance, v, l));
-        PQfreemem(v);
+        bi.blob_string = (char *)PQunescapeBytea((unsigned char*)v, &bi.length);
+        rv = rb_ensure(spg_create_Blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
         break;
       case 20: /* integer */
       case 21:

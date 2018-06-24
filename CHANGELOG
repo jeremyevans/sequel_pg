@@ -1,5 +1,7 @@
 === master
 
+* Don't leak memory if unable to create a Sequel::SQL::Blob string when parsing bytea (jeremyevans)
+
 * Improve performance of bytea parsing (jeremyevans)
 
 * Respect Sequel.application_timezone setting when parsing values for time and timetz columns (jeremyevans)
