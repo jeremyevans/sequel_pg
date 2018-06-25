@@ -473,7 +473,7 @@ static VALUE spg_time(const char *p, size_t length, int current) {
 
 /* Caller should check length is at least 4 */
 static int parse_year(const char **str, size_t *length) {
-  int year;
+  int year, i;
   size_t remaining = *length;
   const char * p = *str;
 
@@ -481,7 +481,7 @@ static int parse_year(const char **str, size_t *length) {
   p += 4;
   remaining -= 4;
 
-  for(int i = 0; isdigit(*p) && i < 3; i++, p++, remaining--) {
+  for(i = 0; isdigit(*p) && i < 3; i++, p++, remaining--) {
     year = 10 * year + char_to_digit(*p);
   }
 
@@ -739,7 +739,7 @@ static VALUE spg_inet(char *val, size_t len)
   VALUE ip;
   VALUE ip_int;
   VALUE vmasks;
-  char dst[16];
+  unsigned int dst[4];
   char buf[64];
   int af = strchr(val, '.') ? AF_INET : AF_INET6;
   int mask = -1;
@@ -767,7 +767,7 @@ static VALUE spg_inet(char *val, size_t len)
     }
   }
 
-  if (1 != inet_pton(af, val, dst)) {
+  if (1 != inet_pton(af, val, (char *)dst)) {
     rb_raise(rb_eTypeError, "unable to parse IP address: %s", val);
   }
 
@@ -781,7 +781,7 @@ static VALUE spg_inet(char *val, size_t len)
     }
     vmasks = spg_vmasks4;
 
-    ip_int_native = ntohl(*(unsigned int *)dst);
+    ip_int_native = ntohl(*dst);
 
     /* Work around broken IPAddr behavior of convering portion
        of address after netmask to 0 */
@@ -1348,13 +1348,13 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   VALUE pg_type;
   VALUE pg_value;
   char type = SPG_YIELD_NORMAL;
+  int enc_index;
 
   if (!RTEST(rres)) {
     return self;
   }
   res = pgresult_get(rres);
 
-  int enc_index;
   enc_index = enc_get_index(rres);
 
   ntuples = PQntuples(res);
@@ -1599,7 +1599,6 @@ static VALUE spg_set_single_row_mode(VALUE self) {
 }
 
 static VALUE spg__yield_each_row(VALUE self) {
-  PGconn *conn;
   PGresult *res;
   VALUE rres;
   VALUE rconn;
@@ -1612,10 +1611,10 @@ static VALUE spg__yield_each_row(VALUE self) {
   VALUE pg_type;
   VALUE pg_value = Qnil;
   char type = SPG_YIELD_NORMAL;
+  int enc_index;
 
   rconn = rb_ary_entry(self, 1);
   self = rb_ary_entry(self, 0);
-  conn = pg_get_pgconn(rconn);
 
   rres = rb_funcall(rconn, spg_id_get_result, 0);
   if (rres == Qnil) {
@@ -1624,7 +1623,6 @@ static VALUE spg__yield_each_row(VALUE self) {
   rb_funcall(rres, spg_id_check, 0);
   res = pgresult_get(rres);
 
-  int enc_index;
   enc_index = enc_get_index(rres);
 
   /* Only handle regular and model types.  All other types require compiling all
