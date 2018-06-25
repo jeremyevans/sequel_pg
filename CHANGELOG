@@ -1,10 +1,12 @@
-=== master
+=== 1.10.0 (2018-06-25)
 
 * Add native inet/cidr parsers (jeremyevans)
 
 * Don't leak memory if unable to create a Sequel::SQL::Blob string when parsing bytea (jeremyevans)
 
 * Improve performance of bytea parsing (jeremyevans)
+
+* Drop Sequel <4.38.0 support (jeremyevans)
 
 * Respect Sequel.application_timezone setting when parsing values for time and timetz columns (jeremyevans)
 
