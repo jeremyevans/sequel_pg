@@ -1715,12 +1715,10 @@ static VALUE spg_yield_each_row(VALUE self, VALUE rconn) {
 
 void Init_sequel_pg(void) {
   VALUE c, spg_Postgres;
-  ID cg;
-  cg = rb_intern("const_get");
 
-  spg_Sequel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Sequel"));
-  spg_Postgres = rb_funcall(spg_Sequel, cg, 1, rb_str_new2("Postgres"));
+  spg_Sequel = rb_const_get(rb_cObject, rb_intern("Sequel"));
   rb_global_variable(&spg_Sequel);
+  spg_Postgres = rb_const_get(spg_Sequel, rb_intern("Postgres"));
 
   if(rb_obj_respond_to(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 0)) {
     if(!RTEST(rb_funcall(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 1, INT2FIX(SEQUEL_PG_VERSION_INTEGER)))) {
@@ -1728,7 +1726,8 @@ void Init_sequel_pg(void) {
       return;
     }
   }
-  rb_funcall(spg_Postgres, rb_intern("const_set"), 2, ID2SYM(rb_intern("SEQUEL_PG_VERSION_INTEGER")), INT2FIX(SEQUEL_PG_VERSION_INTEGER));
+  
+  rb_const_set(spg_Postgres, rb_intern("SEQUEL_PG_VERSION_INTEGER"), INT2FIX(SEQUEL_PG_VERSION_INTEGER));
 
   spg_id_BigDecimal = rb_intern("BigDecimal");
   spg_id_new = rb_intern("new");
@@ -1809,19 +1808,19 @@ void Init_sequel_pg(void) {
   spg_sym_inet = ID2SYM(rb_intern("inet"));
   spg_sym_cidr = ID2SYM(rb_intern("cidr"));
 
-  spg_Blob = rb_funcall(rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQL")), cg, 1, rb_str_new2("Blob")); 
+  spg_Blob = rb_const_get(rb_const_get(spg_Sequel, rb_intern("SQL")), rb_intern("Blob")); 
   rb_global_variable(&spg_Blob);
   spg_Blob_instance = rb_obj_freeze(rb_funcall(spg_Blob, spg_id_new, 0));
   rb_global_variable(&spg_Blob_instance);
-  spg_SQLTime= rb_funcall(spg_Sequel, cg, 1, rb_str_new2("SQLTime")); 
+  spg_SQLTime = rb_const_get(spg_Sequel, rb_intern("SQLTime")); 
   rb_global_variable(&spg_SQLTime);
-  spg_Kernel = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Kernel")); 
+  spg_Kernel = rb_const_get(rb_cObject, rb_intern("Kernel")); 
   rb_global_variable(&spg_Kernel);
-  spg_Date = rb_funcall(rb_cObject, cg, 1, rb_str_new2("Date")); 
+  spg_Date = rb_const_get(rb_cObject, rb_intern("Date")); 
   rb_global_variable(&spg_Date);
-  spg_DateTime = rb_funcall(rb_cObject, cg, 1, rb_str_new2("DateTime")); 
+  spg_DateTime = rb_const_get(rb_cObject, rb_intern("DateTime")); 
   rb_global_variable(&spg_DateTime);
-  spg_PGError = rb_funcall(rb_funcall(rb_cObject, cg, 1, rb_str_new2("PG")), cg, 1, rb_str_new2("Error"));
+  spg_PGError = rb_const_get(rb_const_get(rb_cObject, rb_intern("PG")), rb_intern("Error"));
   rb_global_variable(&spg_PGError);
 
   spg_nan = rb_eval_string("0.0/0.0");
@@ -1834,7 +1833,7 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_usec_per_day);
 
   rb_require("ipaddr");
-  spg_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
+  spg_IPAddr = rb_const_get(rb_cObject, rb_intern("IPAddr"));
   rb_global_variable(&spg_IPAddr);
   spg_use_ipaddr_alloc = RTEST(rb_eval_string("IPAddr.new.instance_variables.sort == [:@addr, :@family, :@mask_addr]"));
   spg_vmasks4 = rb_eval_string("a = [0]*33; a[0] = 0; a[32] = 0xffffffff; 31.downto(1){|i| a[i] = a[i+1] - (1 << (31 - i))}; a.freeze");
@@ -1842,7 +1841,7 @@ void Init_sequel_pg(void) {
   spg_vmasks6 = rb_eval_string("a = [0]*129; a[0] = 0; a[128] = 0xffffffffffffffffffffffffffffffff; 127.downto(1){|i| a[i] = a[i+1] - (1 << (127 - i))}; a.freeze");
   rb_global_variable(&spg_vmasks6);
 
-  c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Dataset"));
+  c = rb_const_get(spg_Postgres, rb_intern("Dataset"));
   rb_undef_method(c, "yield_hash_rows");
   rb_define_private_method(c, "yield_hash_rows", spg_yield_hash_rows, 2);
   rb_undef_method(c, "fetch_rows_set_cols");
@@ -1856,7 +1855,7 @@ void Init_sequel_pg(void) {
   spg_id_check = rb_intern("check");
 
   rb_define_private_method(c, "yield_each_row", spg_yield_each_row, 1);
-  c = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("Adapter"));
+  c = rb_const_get(spg_Postgres, rb_intern("Adapter"));
   rb_define_private_method(c, "set_single_row_mode", spg_set_single_row_mode, 0);
 #endif
 
@@ -1865,6 +1864,6 @@ void Init_sequel_pg(void) {
   rb_require("sequel_pg/sequel_pg");
 
   rb_require("sequel/extensions/pg_array");
-  spg_PGArray = rb_funcall(spg_Postgres, cg, 1, rb_str_new2("PGArray"));
+  spg_PGArray = rb_const_get(spg_Postgres, rb_intern("PGArray"));
   rb_global_variable(&spg_PGArray);
 }
