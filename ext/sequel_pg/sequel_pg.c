@@ -79,7 +79,6 @@ static VALUE spg_Sequel;
 static VALUE spg_PGArray;
 static VALUE spg_Blob;
 static VALUE spg_Blob_instance;
-static VALUE spg_Kernel;
 static VALUE spg_Date;
 static VALUE spg_DateTime;
 static VALUE spg_SQLTime;
@@ -892,7 +891,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       }
       break;
     case 1700: /* numeric */
-      rv = rb_funcall(spg_Kernel, spg_id_BigDecimal, 1, rb_str_new(v, length));
+      rv = rb_funcall(rb_mKernel, spg_id_BigDecimal, 1, rb_str_new(v, length));
       break;
     case 1082: /* date */
       rv = spg_date(v, db, length);
@@ -1029,7 +1028,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         }
         break;
       case 1700: /* numeric */
-        rv = rb_funcall(spg_Kernel, spg_id_BigDecimal, 1, rb_str_new(v, PQgetlength(res, i, j)));
+        rv = rb_funcall(rb_mKernel, spg_id_BigDecimal, 1, rb_str_new(v, PQgetlength(res, i, j)));
         break;
       case 1082: /* date */
         rv = spg_date(v, self, PQgetlength(res, i, j));
@@ -1814,8 +1813,6 @@ void Init_sequel_pg(void) {
   rb_global_variable(&spg_Blob_instance);
   spg_SQLTime = rb_const_get(spg_Sequel, rb_intern("SQLTime")); 
   rb_global_variable(&spg_SQLTime);
-  spg_Kernel = rb_const_get(rb_cObject, rb_intern("Kernel")); 
-  rb_global_variable(&spg_Kernel);
   spg_Date = rb_const_get(rb_cObject, rb_intern("Date")); 
   rb_global_variable(&spg_Date);
   spg_DateTime = rb_const_get(rb_cObject, rb_intern("DateTime")); 
