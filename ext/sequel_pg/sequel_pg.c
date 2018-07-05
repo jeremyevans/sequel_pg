@@ -880,14 +880,23 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       break;
     case 700: /* float */
     case 701:
-      if (strcmp("NaN", v) == 0) {
-        rv = spg_nan;
-      } else if (strcmp("Infinity", v) == 0) {
-        rv = spg_pos_inf;
-      } else if (strcmp("-Infinity", v) == 0) {
-        rv = spg_neg_inf;
-      } else {
-        rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+      switch(*v) {
+        case 'N':
+          rv = spg_nan;
+          break;
+        case 'I':
+          rv = spg_pos_inf;
+          break;
+        case '-':
+          if (v[1] == 'I') {
+            rv = spg_neg_inf;
+          } else {
+            rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+          }
+          break;
+        default:
+          rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+          break;
       }
       break;
     case 1700: /* numeric */
@@ -1017,14 +1026,23 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         break;
       case 700: /* float */
       case 701:
-        if (strcmp("NaN", v) == 0) {
-          rv = spg_nan;
-        } else if (strcmp("Infinity", v) == 0) {
-          rv = spg_pos_inf;
-        } else if (strcmp("-Infinity", v) == 0) {
-          rv = spg_neg_inf;
-        } else {
-          rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+        switch(*v) {
+          case 'N':
+            rv = spg_nan;
+            break;
+          case 'I':
+            rv = spg_pos_inf;
+            break;
+          case '-':
+            if (v[1] == 'I') {
+              rv = spg_neg_inf;
+            } else {
+              rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+            }
+            break;
+          default:
+            rv = rb_float_new(rb_cstr_to_dbl(v, Qfalse));
+            break;
         }
         break;
       case 1700: /* numeric */

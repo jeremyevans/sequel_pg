@@ -1,3 +1,7 @@
+=== master
+
+* Slight performance improvement to float parsing (jeremyevans)
+
 === 1.10.0 (2018-06-25)
 
 * Add native inet/cidr parsers (jeremyevans)
