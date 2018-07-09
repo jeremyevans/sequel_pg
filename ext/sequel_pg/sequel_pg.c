@@ -1263,18 +1263,21 @@ static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
   return pg_columns;
 }
 
-static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE *colconvert) {
+static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE *colconvert, int enc_index) {
   long i;
   long j;
   long nfields;
   int timestamp_info = 0;
   int time_info = 0;
   VALUE conv_procs = 0;
+  VALUE tmp;
 
   nfields = PQnfields(res);
 
   for(j=0; j<nfields; j++) {
-    colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, rb_str_new2(PQfname(res, j)));
+    tmp = rb_str_new2(PQfname(res, j));
+    PG_ENCODING_SET_NOCHECK(tmp, enc_index);
+    colsyms[j] = rb_funcall(self, spg_id_output_identifier, 1, tmp);
     i = PQftype(res, j);
     switch (i) {
       /* scalar types */
@@ -1380,7 +1383,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
     rb_raise(rb_eRangeError, "more than %d columns in query (%ld columns detected)", SPG_MAX_FIELDS, nfields);
   }
 
-  spg_set_column_info(self, res, colsyms, colconvert);
+  spg_set_column_info(self, res, colsyms, colconvert, enc_index);
 
   opts = rb_funcall(self, spg_id_opts, 0);
   if (rb_type(opts) == T_HASH) {
@@ -1660,7 +1663,7 @@ static VALUE spg__yield_each_row(VALUE self) {
     rb_raise(rb_eRangeError, "more than %d columns in query", SPG_MAX_FIELDS);
   }
 
-  spg_set_column_info(self, res, colsyms, colconvert);
+  spg_set_column_info(self, res, colsyms, colconvert, enc_index);
 
   while (PQntuples(res) != 0) {
     h = rb_hash_new();
