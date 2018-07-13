@@ -391,10 +391,14 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
     return ary;
   }
 
+  ary = rb_str_buf_new(array_string_length);
+  rb_str_set_len(ary, array_string_length);
+  rb_obj_freeze(ary);
+
   return read_array(&index,
     c_pg_array_string,
     array_string_length,
-    rb_str_buf_new(array_string_length),
+    ary,
     converter,
     enc_get_index(pg_array_string),
     0,
@@ -936,6 +940,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
 
 static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, VALUE converter, int enc_index, int oid, VALUE self, VALUE array_type) {
   int index = 1;
+  VALUE buf;
   VALUE args[2];
   args[1] = array_type;
 
@@ -943,7 +948,10 @@ static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, V
     return rb_class_new_instance(2, args, spg_PGArray);
   }
 
-  args[0] = read_array(&index, c_pg_array_string, array_string_length, rb_str_buf_new(array_string_length), converter, enc_index, oid, self);
+  buf = rb_str_buf_new(array_string_length);
+  rb_str_set_len(buf, array_string_length);
+  rb_obj_freeze(buf);
+  args[0] = read_array(&index, c_pg_array_string, array_string_length, buf, converter, enc_index, oid, self);
   return rb_class_new_instance(2, args, spg_PGArray);
 }
 
