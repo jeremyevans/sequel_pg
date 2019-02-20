@@ -119,6 +119,9 @@ module Sequel::Postgres::Streaming
 
     # Use streaming to implement paging.
     def paged_each(opts=Sequel::OPTS, &block)
+      unless block_given?
+        return enum_for(:paged_each, opts)
+      end
       stream.each(&block)
     end
 

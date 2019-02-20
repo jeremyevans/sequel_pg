@@ -1,5 +1,7 @@
 === master
 
+* Allow Dataset#paged_each to be called without a block when using streaming (jeremyevans)
+
 * Freeze ruby strings used as temporary buffers for parsing arrays (jeremyevans)
 
 === 1.11.0 (2018-07-09)
