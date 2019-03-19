@@ -1,5 +1,7 @@
 === master
 
+* Use rb_gc_register_mark_object instead of rb_global_variable (jeremyevans)
+
 * Use pkg_config instead of pg_config for configuration (jeremyevans) (#31)
 
 === 1.12.0 (2019-03-01)

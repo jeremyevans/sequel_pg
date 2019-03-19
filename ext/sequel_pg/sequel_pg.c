@@ -1745,7 +1745,7 @@ void Init_sequel_pg(void) {
   VALUE c, spg_Postgres;
 
   spg_Sequel = rb_const_get(rb_cObject, rb_intern("Sequel"));
-  rb_global_variable(&spg_Sequel);
+  rb_gc_register_mark_object(spg_Sequel);
   spg_Postgres = rb_const_get(spg_Sequel, rb_intern("Postgres"));
 
   if(rb_obj_respond_to(spg_Postgres, rb_intern("sequel_pg_version_supported?"), 0)) {
@@ -1837,35 +1837,35 @@ void Init_sequel_pg(void) {
   spg_sym_cidr = ID2SYM(rb_intern("cidr"));
 
   spg_Blob = rb_const_get(rb_const_get(spg_Sequel, rb_intern("SQL")), rb_intern("Blob")); 
-  rb_global_variable(&spg_Blob);
+  rb_gc_register_mark_object(spg_Blob);
   spg_Blob_instance = rb_obj_freeze(rb_funcall(spg_Blob, spg_id_new, 0));
-  rb_global_variable(&spg_Blob_instance);
+  rb_gc_register_mark_object(spg_Blob_instance);
   spg_SQLTime = rb_const_get(spg_Sequel, rb_intern("SQLTime")); 
-  rb_global_variable(&spg_SQLTime);
+  rb_gc_register_mark_object(spg_SQLTime);
   spg_Date = rb_const_get(rb_cObject, rb_intern("Date")); 
-  rb_global_variable(&spg_Date);
+  rb_gc_register_mark_object(spg_Date);
   spg_DateTime = rb_const_get(rb_cObject, rb_intern("DateTime")); 
-  rb_global_variable(&spg_DateTime);
+  rb_gc_register_mark_object(spg_DateTime);
   spg_PGError = rb_const_get(rb_const_get(rb_cObject, rb_intern("PG")), rb_intern("Error"));
-  rb_global_variable(&spg_PGError);
+  rb_gc_register_mark_object(spg_PGError);
 
   spg_nan = rb_eval_string("0.0/0.0");
-  rb_global_variable(&spg_nan);
+  rb_gc_register_mark_object(spg_nan);
   spg_pos_inf = rb_eval_string("1.0/0.0");
-  rb_global_variable(&spg_pos_inf);
+  rb_gc_register_mark_object(spg_pos_inf);
   spg_neg_inf = rb_eval_string("-1.0/0.0");
-  rb_global_variable(&spg_neg_inf);
+  rb_gc_register_mark_object(spg_neg_inf);
   spg_usec_per_day = ULL2NUM(86400000000ULL);
-  rb_global_variable(&spg_usec_per_day);
+  rb_gc_register_mark_object(spg_usec_per_day);
 
   rb_require("ipaddr");
   spg_IPAddr = rb_const_get(rb_cObject, rb_intern("IPAddr"));
-  rb_global_variable(&spg_IPAddr);
+  rb_gc_register_mark_object(spg_IPAddr);
   spg_use_ipaddr_alloc = RTEST(rb_eval_string("IPAddr.new.instance_variables.sort == [:@addr, :@family, :@mask_addr]"));
   spg_vmasks4 = rb_eval_string("a = [0]*33; a[0] = 0; a[32] = 0xffffffff; 31.downto(1){|i| a[i] = a[i+1] - (1 << (31 - i))}; a.freeze");
-  rb_global_variable(&spg_vmasks4);
+  rb_gc_register_mark_object(spg_vmasks4);
   spg_vmasks6 = rb_eval_string("a = [0]*129; a[0] = 0; a[128] = 0xffffffffffffffffffffffffffffffff; 127.downto(1){|i| a[i] = a[i+1] - (1 << (127 - i))}; a.freeze");
-  rb_global_variable(&spg_vmasks6);
+  rb_gc_register_mark_object(spg_vmasks6);
 
   c = rb_const_get(spg_Postgres, rb_intern("Dataset"));
   rb_undef_method(c, "yield_hash_rows");
@@ -1891,5 +1891,5 @@ void Init_sequel_pg(void) {
 
   rb_require("sequel/extensions/pg_array");
   spg_PGArray = rb_const_get(spg_Postgres, rb_intern("PGArray"));
-  rb_global_variable(&spg_PGArray);
+  rb_gc_register_mark_object(spg_PGArray);
 }
