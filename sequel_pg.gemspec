@@ -17,6 +17,13 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.extensions << 'ext/sequel_pg/extconf.rb'
   s.add_dependency("pg", [">= 0.18.0"])
   s.add_dependency("sequel", [">= 4.38.0"])
+  s.metadata = {
+    'bug_tracker_uri'   => 'https://github.com/jeremyevans/sequel_pg/issues',
+    'changelog_uri'     => 'https://github.com/jeremyevans/sequel_pg/blob/master/CHANGELOG',
+    'documentation_uri' => 'https://github.com/jeremyevans/sequel_pg/blob/master/README.rdoc',
+    'mailing_list_uri'  => 'https://groups.google.com/forum/#!forum/sequel-talk',
+    'source_code_uri'   => 'https://github.com/jeremyevans/sequel_pg',
+  }
   s.description = <<END
 sequel_pg overwrites the inner loop of the Sequel postgres
 adapter row fetching code with a C version.  The C version
