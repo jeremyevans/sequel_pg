@@ -74,9 +74,9 @@ class Sequel::Postgres::Dataset
   if defined?(Sequel::Model::ClassMethods)
     # If model loads are being optimized and this is a model load, use the optimized
     # version.
-    def each
+    def each(&block)
       if optimize_model_load?
-        clone(:_sequel_pg_type=>:model, :_sequel_pg_value=>row_proc).fetch_rows(sql, &Proc.new)
+        clone(:_sequel_pg_type=>:model, :_sequel_pg_value=>row_proc).fetch_rows(sql, &block)
       else
         super
       end

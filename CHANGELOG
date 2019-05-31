@@ -1,5 +1,7 @@
 === master
 
+* Avoid using Proc.new without block, fixing deprecation warning on ruby 2.7+ (jeremyevans)
+
 * Use rb_gc_register_mark_object instead of rb_global_variable (jeremyevans)
 
 * Use pkg_config instead of pg_config for configuration (jeremyevans) (#31)
