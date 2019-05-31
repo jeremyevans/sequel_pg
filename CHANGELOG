@@ -1,4 +1,4 @@
-=== master
+=== 1.12.1 (2019-05-31)
 
 * Avoid using Proc.new without block, fixing deprecation warning on ruby 2.7+ (jeremyevans)
 
