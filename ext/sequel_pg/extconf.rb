@@ -1,5 +1,6 @@
 require 'mkmf'
 $CFLAGS << " -O0 -g" if ENV['DEBUG']
+$CFLAGS << " -Drb_tainted_str_new=rb_str_new -DNO_TAINT" if RUBY_VERSION >= '2.7'
 $CFLAGS << " -Wall " unless RUBY_PLATFORM =~ /solaris/
 dir_config('pg', ENV["POSTGRES_INCLUDE"] || (IO.popen("pg_config --includedir").readline.chomp rescue nil),
                  ENV["POSTGRES_LIB"]     || (IO.popen("pg_config --libdir").readline.chomp rescue nil))

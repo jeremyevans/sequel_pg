@@ -409,7 +409,7 @@ static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_ms
   self = rb_funcall(self, spg_id_db, 0);
   if(RTEST(rb_funcall(self, spg_id_convert_infinite_timestamps, 0))) {
     if((strcmp(s, "infinity") == 0) || (strcmp(s, "-infinity") == 0)) {
-      return rb_funcall(self, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new2(s));
+      return rb_funcall(self, spg_id_infinite_timestamp_value, 1, rb_tainted_str_new(s, strlen(s)));
     }
   }
   rb_raise(rb_eArgError, "%s", error_msg);
@@ -857,7 +857,11 @@ static VALUE spg_create_Blob(VALUE v) {
   if (bi->blob_string == NULL) {
     rb_raise(rb_eNoMemError, "PQunescapeBytea failure: probably not enough memory");
   }
-  return rb_obj_taint(rb_str_new_with_class(spg_Blob_instance, bi->blob_string, bi->length));
+  v = rb_str_new_with_class(spg_Blob_instance, bi->blob_string, bi->length);
+#ifndef NO_TAINT
+  rb_obj_taint(v);
+#endif
+  return v;
 }
 
 static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
