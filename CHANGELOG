@@ -1,4 +1,4 @@
-=== master
+=== 1.12.3 (2020-01-02)
 
 * Warn and do not load sequel_pg if pg >1.2 is used (jeremyevans)
 
