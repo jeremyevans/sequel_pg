@@ -1758,6 +1758,11 @@ void Init_sequel_pg(void) {
       return;
     }
   }
+
+  if (RTEST(rb_eval_string("defined?(PG::VERSION) && PG::VERSION.to_f >= 1.2"))) {
+    rb_warn("sequel_pg not loaded as it is not compatible with the ruby-pg version in use; uninstall sequel_pg or downgrade pg to 1.1.4");
+    return;
+  }
   
   rb_const_set(spg_Postgres, rb_intern("SEQUEL_PG_VERSION_INTEGER"), INT2FIX(SEQUEL_PG_VERSION_INTEGER));
 

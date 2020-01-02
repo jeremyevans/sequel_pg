@@ -1,5 +1,7 @@
 === master
 
+* Warn and do not load sequel_pg if pg >1.2 is used (jeremyevans)
+
 * Avoid verbose warnings on Ruby 2.7 due to tainting (jeremyevans)
 
 === 1.12.2 (2019-06-06)
