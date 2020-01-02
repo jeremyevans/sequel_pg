@@ -15,7 +15,7 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
   s.files = %w(MIT-LICENSE CHANGELOG README.rdoc Rakefile ext/sequel_pg/extconf.rb ext/sequel_pg/sequel_pg.c lib/sequel_pg/sequel_pg.rb lib/sequel/extensions/pg_streaming.rb)
   s.license = 'MIT'
   s.extensions << 'ext/sequel_pg/extconf.rb'
-  s.add_dependency("pg", [">= 0.18.0"])
+  s.add_dependency("pg", [">= 0.18.0", "!= 1.2.0"])
   s.add_dependency("sequel", [">= 4.38.0"])
   s.metadata = {
     'bug_tracker_uri'   => 'https://github.com/jeremyevans/sequel_pg/issues',

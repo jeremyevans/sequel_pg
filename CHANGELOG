@@ -1,3 +1,7 @@
+=== 1.12.4 (2020-01-02)
+
+* Work with pg 1.2.1+ (jeremyevans)
+
 === 1.12.3 (2020-01-02)
 
 * Warn and do not load sequel_pg if pg >1.2 is used (jeremyevans)

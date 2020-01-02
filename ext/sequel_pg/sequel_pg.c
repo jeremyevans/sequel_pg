@@ -1,4 +1,4 @@
-#define SEQUEL_PG_VERSION_INTEGER 11203
+#define SEQUEL_PG_VERSION_INTEGER 11204
 
 #include <string.h>
 #include <stdio.h>
@@ -72,8 +72,10 @@
 /* External functions defined by ruby-pg */
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
+int pg_get_result_enc_idx(VALUE);
 
 static int spg_use_ipaddr_alloc;
+static int spg_use_pg_get_result_enc_idx;
 
 static VALUE spg_Sequel;
 static VALUE spg_PGArray;
@@ -1387,7 +1389,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   }
   res = pgresult_get(rres);
 
-  enc_index = enc_get_index(rres);
+  enc_index = spg_use_pg_get_result_enc_idx ? pg_get_result_enc_idx(rres) : enc_get_index(rres);
 
   ntuples = PQntuples(res);
   nfields = PQnfields(res);
@@ -1655,7 +1657,7 @@ static VALUE spg__yield_each_row(VALUE self) {
   rb_funcall(rres, spg_id_check, 0);
   res = pgresult_get(rres);
 
-  enc_index = enc_get_index(rres);
+  enc_index = spg_use_pg_get_result_enc_idx ? pg_get_result_enc_idx(rres) : enc_get_index(rres);
 
   /* Only handle regular and model types.  All other types require compiling all
    * of the results at once, which is not a use case for streaming.  The streaming
@@ -1760,8 +1762,7 @@ void Init_sequel_pg(void) {
   }
 
   if (RTEST(rb_eval_string("defined?(PG::VERSION) && PG::VERSION.to_f >= 1.2"))) {
-    rb_warn("sequel_pg not loaded as it is not compatible with the ruby-pg version in use; uninstall sequel_pg or downgrade pg to 1.1.4");
-    return;
+    spg_use_pg_get_result_enc_idx = 1;
   }
   
   rb_const_set(spg_Postgres, rb_intern("SEQUEL_PG_VERSION_INTEGER"), INT2FIX(SEQUEL_PG_VERSION_INTEGER));
