@@ -1,4 +1,4 @@
-#define SEQUEL_PG_VERSION_INTEGER 11204
+#define SEQUEL_PG_VERSION_INTEGER 11205
 
 #include <string.h>
 #include <stdio.h>
@@ -631,7 +631,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
         if (tz & SPG_APP_UTC) {
           dt = rb_funcall(dt, spg_id_utc, 0);
         } else if (tz & SPG_APP_LOCAL) {
-          dt = rb_funcall(dt, spg_id_local, 0);
+          dt = rb_funcall(dt, spg_id_localtime, 0);
         } 
 
         return dt;
