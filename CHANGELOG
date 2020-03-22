@@ -1,6 +1,8 @@
 === 1.12.5 (2020-03-23)
 
-* Fix bug in parsing timestamptz types when using utc database timezone and local application timezone (jeremyevans)
+* Fix offset calculation for timestamptz types when datetime_class is DateTime and using local application timezone (jeremyevans)
+
+* Fix wrong method call when parsing timestamptz types when datetime_class is Time and using utc database timezone and local application timezone (jeremyevans)
 
 === 1.12.4 (2020-01-02)
 

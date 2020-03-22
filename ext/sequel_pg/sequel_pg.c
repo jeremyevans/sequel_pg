@@ -703,8 +703,8 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
       SPG_DT_ADD_USEC
 
       if (tz & SPG_APP_LOCAL) {
-        utc_offset = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_new, 0), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
-        dt = rb_funcall(dt, spg_id_new_offset, 1, rb_float_new(utc_offset));
+        offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
+        dt = rb_funcall(dt, spg_id_new_offset, 1, rb_float_new(offset_fraction));
       } else if (tz & SPG_APP_UTC) {
         dt = rb_funcall(dt, spg_id_new_offset, 1, INT2NUM(0));
       } 
