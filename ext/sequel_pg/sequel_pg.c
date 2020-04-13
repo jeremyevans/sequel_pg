@@ -872,6 +872,8 @@ static VALUE spg_fetch_rows_set_cols(VALUE self, VALUE ignore) {
 
 static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int enc_index, int oid, VALUE db) {
   VALUE rv;
+  VALUE conv_procs = 0;
+  VALUE conversion_proc = 0;
   struct spg_blob_initialization bi;
 
   switch(oid) {
@@ -931,7 +933,16 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       break;
     case 869: /* inet */
     case 650: /* cidr */
-      rv = spg_inet(v, length);
+      if (conv_procs == 0) {
+        conv_procs = rb_funcall(rb_funcall(db, spg_id_db, 0), spg_id_conversion_procs, 0);
+      }
+      conversion_proc = rb_funcall(conv_procs, spg_id_get, 1, INT2NUM(oid));
+      if (conversion_proc != Qnil) {
+        rv = rb_tainted_str_new(v, length);
+        rv = rb_funcall(conversion_proc, spg_id_call, 1, rv);
+      } else {
+        rv = spg_inet(v, length);
+      }
       break;
     default:
       rv = rb_tainted_str_new(v, length);
@@ -1078,10 +1089,6 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
       case 1043: /* varchar*/
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
         PG_ENCODING_SET_NOCHECK(rv, enc_index);
-        break;
-      case 869: /* inet */
-      case 650: /* cidr */
-        rv = spg_inet(v, PQgetlength(res, i, j));
         break;
       /* array types */
       case 1009:
@@ -1230,6 +1237,12 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
         }
         rv = spg_array_value(v, PQgetlength(res, i, j), colconvert[j], enc_index, scalar_oid, self, array_type);
         break;
+      case 869: /* inet */
+      case 650: /* cidr */
+        if (colconvert[j] == Qnil) {
+          rv = spg_inet(v, PQgetlength(res, i, j));
+          break;
+        }
       default:
         rv = rb_tainted_str_new(v, PQgetlength(res, i, j));
         PG_ENCODING_SET_NOCHECK(rv, enc_index);
