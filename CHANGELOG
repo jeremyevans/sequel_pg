@@ -1,3 +1,7 @@
+=== 1.13.0 (2020-04-13)
+
+* Allow overriding of inet/cidr type conversion using conversion procs (beanieboi, jeremyevans) (#36, #37)
+
 === 1.12.5 (2020-03-23)
 
 * Fix offset calculation for timestamptz types when datetime_class is DateTime and using local application timezone (jeremyevans)
