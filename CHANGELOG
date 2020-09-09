@@ -1,3 +1,9 @@
+=== master
+
+* Reduce stack memory usage for result sets with 64 or fewer columns (jeremyevans)
+
+* Support result sets with more than 256 columns by default (jeremyevans) (#39)
+
 === 1.13.0 (2020-04-13)
 
 * Allow overriding of inet/cidr type conversion using conversion procs (beanieboi, jeremyevans) (#36, #37)

@@ -70,12 +70,6 @@ can do the following:
 
   gem install sequel_pg
 
-Note that by default sequel_pg only supports result sets with up to
-256 columns. If you will have a result set with more than 256 columns,
-you should modify the maximum supported number of columns via:
-
-   gem install sequel_pg -- --with-cflags=\"-DSPG_MAX_FIELDS=512\"
-
 Make sure the pg_config binary is in your PATH so the installation
 can find the PostgreSQL shared library and header files.  Alternatively,
 you can use the POSTGRES_LIB and POSTGRES_INCLUDE environment
@@ -130,6 +124,7 @@ sequel_pg has been tested on the following:
 * ruby 2.4
 * ruby 2.5
 * ruby 2.6
+* ruby 2.7
 
 == Known Issues
 

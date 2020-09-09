@@ -15,9 +15,6 @@
 #include <ruby/version.h>
 #include <ruby/encoding.h>
 
-#ifndef SPG_MAX_FIELDS
-#define SPG_MAX_FIELDS 256
-#endif
 #define SPG_MINUTES_PER_DAY 1440.0
 #define SPG_SECONDS_PER_DAY 86400.0
 
@@ -1380,10 +1377,7 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
   rb_funcall(self, spg_id_columns_equal, 1, rb_ary_new4(nfields, colsyms));
 }
 
-static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
-  PGresult *res;
-  VALUE colsyms[SPG_MAX_FIELDS];
-  VALUE colconvert[SPG_MAX_FIELDS];
+static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_index, VALUE* colsyms, VALUE* colconvert) {
   long ntuples;
   long nfields;
   long i;
@@ -1393,21 +1387,9 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   VALUE pg_type;
   VALUE pg_value;
   char type = SPG_YIELD_NORMAL;
-  int enc_index;
-
-  if (!RTEST(rres)) {
-    return self;
-  }
-  res = pgresult_get(rres);
-
-  enc_index = spg_use_pg_get_result_enc_idx ? pg_get_result_enc_idx(rres) : enc_get_index(rres);
 
   ntuples = PQntuples(res);
   nfields = PQnfields(res);
-  if (nfields > SPG_MAX_FIELDS) {
-    rb_raise(rb_eRangeError, "more than %d columns in query (%ld columns detected)", SPG_MAX_FIELDS, nfields);
-  }
-
   spg_set_column_info(self, res, colsyms, colconvert, enc_index);
 
   opts = rb_funcall(self, spg_id_opts, 0);
@@ -1624,6 +1606,40 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   return self;
 }
 
+#define def_spg_yield_hash_rows(max_fields) static VALUE spg_yield_hash_rows_ ## max_fields(VALUE self, PGresult *res, int enc_index) { \
+  VALUE colsyms[max_fields]; \
+  VALUE colconvert[max_fields]; \
+  return spg_yield_hash_rows_internal(self, res, enc_index, colsyms, colconvert); \
+}
+
+def_spg_yield_hash_rows(16)
+def_spg_yield_hash_rows(64)
+def_spg_yield_hash_rows(256)
+def_spg_yield_hash_rows(1664)
+
+static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
+  PGresult *res;
+  long nfields;
+  int enc_index;
+
+  if (!RTEST(rres)) {
+    return self;
+  }
+  res = pgresult_get(rres);
+
+  enc_index = spg_use_pg_get_result_enc_idx ? pg_get_result_enc_idx(rres) : enc_get_index(rres);
+
+  nfields = PQnfields(res);
+  if (nfields <= 16) return spg_yield_hash_rows_16(self, res, enc_index);
+  else if (nfields <= 64) return spg_yield_hash_rows_64(self, res, enc_index);
+  else if (nfields <= 256) return spg_yield_hash_rows_256(self, res, enc_index);
+  else if (nfields <= 1664) return spg_yield_hash_rows_1664(self, res, enc_index);
+  else rb_raise(rb_eRangeError, "more than 1664 columns in query (%ld columns detected)", nfields);
+
+  /* UNREACHABLE */
+  return self;
+}
+
 static VALUE spg_supports_streaming_p(VALUE self) {
   return
 #if HAVE_PQSETSINGLEROWMODE
@@ -1643,12 +1659,7 @@ static VALUE spg_set_single_row_mode(VALUE self) {
   return Qnil;
 }
 
-static VALUE spg__yield_each_row(VALUE self) {
-  PGresult *res;
-  VALUE rres;
-  VALUE rconn;
-  VALUE colsyms[SPG_MAX_FIELDS];
-  VALUE colconvert[SPG_MAX_FIELDS];
+static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, PGresult *res, int enc_index, VALUE *colsyms, VALUE *colconvert) {
   long nfields;
   long j;
   VALUE h;
@@ -1656,19 +1667,8 @@ static VALUE spg__yield_each_row(VALUE self) {
   VALUE pg_type;
   VALUE pg_value = Qnil;
   char type = SPG_YIELD_NORMAL;
-  int enc_index;
 
-  rconn = rb_ary_entry(self, 1);
-  self = rb_ary_entry(self, 0);
-
-  rres = rb_funcall(rconn, spg_id_get_result, 0);
-  if (rres == Qnil) {
-    goto end_yield_each_row;
-  }
-  rb_funcall(rres, spg_id_check, 0);
-  res = pgresult_get(rres);
-
-  enc_index = spg_use_pg_get_result_enc_idx ? pg_get_result_enc_idx(rres) : enc_get_index(rres);
+  nfields = PQnfields(res);
 
   /* Only handle regular and model types.  All other types require compiling all
    * of the results at once, which is not a use case for streaming.  The streaming
@@ -1680,12 +1680,6 @@ static VALUE spg__yield_each_row(VALUE self) {
     if (SYMBOL_P(pg_type) && pg_type == spg_sym_model && rb_type(pg_value) == T_CLASS) {
       type = SPG_YIELD_MODEL;
     }
-  }
-
-  nfields = PQnfields(res);
-  if (nfields > SPG_MAX_FIELDS) {
-    rb_funcall(rres, spg_id_clear, 0);
-    rb_raise(rb_eRangeError, "more than %d columns in query", SPG_MAX_FIELDS);
   }
 
   spg_set_column_info(self, res, colsyms, colconvert, enc_index);
@@ -1709,14 +1703,57 @@ static VALUE spg__yield_each_row(VALUE self) {
 
     rres = rb_funcall(rconn, spg_id_get_result, 0);
     if (rres == Qnil) {
-      goto end_yield_each_row;
+      return self;
     }
     rb_funcall(rres, spg_id_check, 0);
     res = pgresult_get(rres);
   }
   rb_funcall(rres, spg_id_clear, 0);
 
-end_yield_each_row:
+  return self;
+}
+
+#define def_spg__yield_each_row(max_fields) static VALUE spg__yield_each_row_ ## max_fields(VALUE self, VALUE rconn, VALUE rres, PGresult *res, int enc_index) { \
+  VALUE colsyms[max_fields]; \
+  VALUE colconvert[max_fields]; \
+  return spg__yield_each_row_internal(self, rconn, rres, res, enc_index, colsyms, colconvert); \
+}
+
+def_spg__yield_each_row(16)
+def_spg__yield_each_row(64)
+def_spg__yield_each_row(256)
+def_spg__yield_each_row(1664)
+
+static VALUE spg__yield_each_row(VALUE self) {
+  PGresult *res;
+  VALUE rres;
+  VALUE rconn;
+  int enc_index;
+  long nfields;
+
+  rconn = rb_ary_entry(self, 1);
+  self = rb_ary_entry(self, 0);
+
+  rres = rb_funcall(rconn, spg_id_get_result, 0);
+  if (rres == Qnil) {
+    return self;
+  }
+  rb_funcall(rres, spg_id_check, 0);
+  res = pgresult_get(rres);
+
+  enc_index = spg_use_pg_get_result_enc_idx ? pg_get_result_enc_idx(rres) : enc_get_index(rres);
+
+  nfields = PQnfields(res);
+  if (nfields <= 16) return spg__yield_each_row_16(self, rconn, rres, res, enc_index);
+  else if (nfields <= 64) return spg__yield_each_row_64(self, rconn, rres, res, enc_index);
+  else if (nfields <= 256) return spg__yield_each_row_256(self, rconn, rres, res, enc_index);
+  else if (nfields <= 1664) return spg__yield_each_row_1664(self, rconn, rres, res, enc_index);
+  else {
+    rb_funcall(rres, spg_id_clear, 0);
+    rb_raise(rb_eRangeError, "more than 1664 columns in query (%ld columns detected)", nfields);
+  }
+
+  /* UNREACHABLE */
   return self;
 }
 
