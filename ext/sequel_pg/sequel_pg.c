@@ -532,7 +532,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
   }
 
   if (remaining < 19) {
-    return spg_timestamp_error(s, self, "unexpected timetamp format, too short");
+    return spg_timestamp_error(s, self, "unexpected timestamp format, too short");
   }
 
   year = parse_year(&p, &remaining);
