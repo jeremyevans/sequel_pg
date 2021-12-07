@@ -120,6 +120,9 @@ if defined?(Sequel::Postgres::PGArray)
   # pg_array extension previously loaded
 
   class Sequel::Postgres::PGArray::Creator
+    # Avoid method redefined verbose warning
+    alias call call if method_defined?(:call)
+
     # Override Creator to use sequel_pg's C-based parser instead of the pure ruby parser.
     def call(string)
       Sequel::Postgres::PGArray.new(Sequel::Postgres.parse_pg_array(string, @converter), @type)

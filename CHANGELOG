@@ -1,3 +1,7 @@
+=== master
+
+* Avoid verbose warning if loading sequel_pg after Sequel pg_array extension (jeremyevans)
+
 === 1.14.0 (2020-09-22)
 
 * Reduce stack memory usage for result sets with 64 or fewer columns (jeremyevans)
