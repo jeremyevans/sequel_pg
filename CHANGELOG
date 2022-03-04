@@ -1,5 +1,7 @@
 === master
 
+* Do not use streaming by default for Dataset#paged_each in the pg_streaming extension (jeremyevans)
+
 * Avoid verbose warning if loading sequel_pg after Sequel pg_array extension (jeremyevans)
 
 === 1.14.0 (2020-09-22)

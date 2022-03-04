@@ -122,7 +122,12 @@ module Sequel::Postgres::Streaming
       unless block_given?
         return enum_for(:paged_each, opts)
       end
-      stream.each(&block)
+
+      if self.opts[:stream]
+        stream.each(&block)
+      else
+        super
+      end
     end
 
     # Return a clone of the dataset that will use streaming to load
