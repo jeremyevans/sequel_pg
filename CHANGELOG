@@ -1,4 +1,4 @@
-=== master
+=== 1.15.0 (2022-03-16)
 
 * Avoid deprecation warning in the pg_streaming extension on pg 1.3+ when streaming a query with bound parameters (jeremyevans)
 
