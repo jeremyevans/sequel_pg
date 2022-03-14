@@ -70,9 +70,11 @@
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
 int pg_get_result_enc_idx(VALUE);
+VALUE pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* data);
 
 static int spg_use_ipaddr_alloc;
 static int spg_use_pg_get_result_enc_idx;
+static int spg_use_pg_stream_any;
 
 static VALUE spg_Sequel;
 static VALUE spg_PGArray;
@@ -1659,6 +1661,38 @@ static VALUE spg_set_single_row_mode(VALUE self) {
   return Qnil;
 }
 
+struct spg__yield_each_row_stream_data {
+  VALUE self;
+  VALUE *colsyms;
+  VALUE *colconvert;
+  VALUE pg_value;
+  int enc_index;
+  char type;
+};
+
+static void spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, void *rdata) {
+  struct spg__yield_each_row_stream_data* data = (struct spg__yield_each_row_stream_data *)rdata;
+  VALUE h = rb_hash_new();
+  VALUE self = data->self;
+  VALUE *colsyms = data->colsyms;
+  VALUE *colconvert= data->colconvert;
+  PGresult *res = pgresult_get(rres);
+  int enc_index = data->enc_index;
+  long j;
+
+  for(j=0; j<nfields; j++) {
+    rb_hash_aset(h, colsyms[j], spg__col_value(self, res, 0, j, colconvert , enc_index));
+  }
+
+  if(data->type == SPG_YIELD_MODEL) {
+    VALUE model = rb_obj_alloc(data->pg_value);
+    rb_ivar_set(model, spg_id_values, h);
+    rb_yield(model);
+  } else {
+    rb_yield(h);
+  }
+}
+
 static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, PGresult *res, int enc_index, VALUE *colsyms, VALUE *colconvert) {
   long nfields;
   long j;
@@ -1667,6 +1701,7 @@ static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, P
   VALUE pg_type;
   VALUE pg_value = Qnil;
   char type = SPG_YIELD_NORMAL;
+  struct spg__yield_each_row_stream_data data;
 
   nfields = PQnfields(res);
 
@@ -1683,6 +1718,18 @@ static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, P
   }
 
   spg_set_column_info(self, res, colsyms, colconvert, enc_index);
+
+  if (spg_use_pg_stream_any) {
+    data.self = self;
+    data.colsyms = colsyms;
+    data.colconvert = colconvert;
+    data.pg_value = pg_value;
+    data.enc_index = enc_index;
+    data.type = type;
+    
+    pgresult_stream_any(rres, spg__yield_each_row_stream, &data);
+    return self;
+  }
 
   while (PQntuples(res) != 0) {
     h = rb_hash_new();
@@ -1809,10 +1856,21 @@ void Init_sequel_pg(void) {
     }
   }
 
-  if (RTEST(rb_eval_string("defined?(PG::VERSION) && PG::VERSION.to_f >= 1.2"))) {
-    spg_use_pg_get_result_enc_idx = 1;
+  c = rb_eval_string("defined?(PG::VERSION) && PG::VERSION.split('.').map(&:to_i)");
+  if (RB_TYPE_P(c, T_ARRAY) && RARRAY_LEN(c) >= 3) {
+    if (FIX2INT(RARRAY_AREF(c, 0)) > 1) {
+      spg_use_pg_get_result_enc_idx = 1;
+      spg_use_pg_stream_any = 1;
+    } else if (FIX2INT(RARRAY_AREF(c, 0)) == 1) {
+      if (FIX2INT(RARRAY_AREF(c, 1)) >= 2) {
+        spg_use_pg_get_result_enc_idx = 1;
+      }
+      if (FIX2INT(RARRAY_AREF(c, 1)) > 3 || (FIX2INT(RARRAY_AREF(c, 1)) == 3 && FIX2INT(RARRAY_AREF(c, 2)) >= 4)) {
+        spg_use_pg_stream_any = 1;
+      }
+    }
   }
-  
+
   rb_const_set(spg_Postgres, rb_intern("SEQUEL_PG_VERSION_INTEGER"), INT2FIX(SEQUEL_PG_VERSION_INTEGER));
 
   spg_id_BigDecimal = rb_intern("BigDecimal");

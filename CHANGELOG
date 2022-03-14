@@ -1,5 +1,7 @@
 === master
 
+* Use pgresult_stream_any when using pg 1.3.4+ for faster streaming (jeremyevans)
+
 * Do not use streaming by default for Dataset#paged_each in the pg_streaming extension (jeremyevans)
 
 * Avoid verbose warning if loading sequel_pg after Sequel pg_array extension (jeremyevans)
