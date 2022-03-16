@@ -112,20 +112,6 @@ requirements:
 
   rake build
 
-== Platforms Supported
-
-sequel_pg has been tested on the following:
-
-* ruby 1.9.3
-* ruby 2.0
-* ruby 2.1
-* ruby 2.2
-* ruby 2.3
-* ruby 2.4
-* ruby 2.5
-* ruby 2.6
-* ruby 2.7
-
 == Known Issues
 
 * You must be using the ISO PostgreSQL date format (which is the
