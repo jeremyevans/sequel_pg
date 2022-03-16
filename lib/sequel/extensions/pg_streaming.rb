@@ -129,8 +129,8 @@ module Sequel::Postgres::Streaming
         return enum_for(:paged_each, opts)
       end
 
-      if self.opts[:stream]
-        stream.each(&block)
+      if stream_results?
+        each(&block)
       else
         super
       end
