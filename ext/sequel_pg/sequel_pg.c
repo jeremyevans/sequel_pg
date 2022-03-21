@@ -199,10 +199,10 @@ static int enc_get_index(VALUE val) {
   } while(0)
 
 static VALUE
-pg_text_dec_integer(char *val, int len)
+pg_text_dec_integer(char *val, size_t len)
 {
   long i;
-  int max_len;
+  size_t max_len;
 
   if( sizeof(i) >= 8 && FIXNUM_MAX >= 1000000000000000000LL ){
     /* 64 bit system can safely handle all numbers up to 18 digits as Fixnum */
@@ -257,7 +257,7 @@ pg_text_dec_integer(char *val, int len)
 
 static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int enc_index, int oid, VALUE db);
 
-static VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, VALUE buf, VALUE converter, int enc_index, int oid, VALUE db) {
+static VALUE read_array(int *index, char *c_pg_array_string, long array_string_length, VALUE buf, VALUE converter, int enc_index, int oid, VALUE db) {
   int word_index = 0;
   char *word = RSTRING_PTR(buf);
 
@@ -353,7 +353,7 @@ static VALUE read_array(int *index, char *c_pg_array_string, int array_string_le
   return array;
 }
 
-static VALUE check_pg_array(int* index, char *c_pg_array_string, int array_string_length) {
+static VALUE check_pg_array(int* index, char *c_pg_array_string, long array_string_length) {
   if (array_string_length == 0) {
     rb_raise(rb_eArgError, "unexpected PostgreSQL array format, empty");
   } else if (array_string_length == 2 && c_pg_array_string[0] == '{' && c_pg_array_string[0] == '}') {
@@ -384,7 +384,7 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
   /* convert to c-string, create additional ruby string buffer of
    * the same length, as that will be the worst case. */
   char *c_pg_array_string = StringValueCStr(pg_array_string);
-  int array_string_length = RSTRING_LEN(pg_array_string);
+  long array_string_length = RSTRING_LEN(pg_array_string);
   int index = 1;
   VALUE ary;
 
@@ -1012,12 +1012,12 @@ static int spg_timestamp_info_bitmask(VALUE self) {
   return tz;
 }
 
-static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* colconvert, int enc_index) {
+static VALUE spg__col_value(VALUE self, PGresult *res, int i, int j, VALUE* colconvert, int enc_index) {
   char *v;
   VALUE rv;
   int ftype = PQftype(res, j);
   VALUE array_type;
-  VALUE scalar_oid;
+  int scalar_oid;
   struct spg_blob_initialization bi;
 
   if(PQgetisnull(res, i, j)) {
@@ -1251,20 +1251,20 @@ static VALUE spg__col_value(VALUE self, PGresult *res, long i, long j, VALUE* co
   return rv;
 }
 
-static VALUE spg__col_values(VALUE self, VALUE v, VALUE *colsyms, long nfields, PGresult *res, long i, VALUE *colconvert, int enc_index) {
+static VALUE spg__col_values(VALUE self, VALUE v, VALUE *colsyms, long nfields, PGresult *res, int i, VALUE *colconvert, int enc_index) {
   long j;
   VALUE cur;
   long len = RARRAY_LEN(v);
   VALUE a = rb_ary_new2(len);
   for (j=0; j<len; j++) {
     cur = rb_ary_entry(v, j);
-    rb_ary_store(a, j, cur == Qnil ? Qnil : spg__col_value(self, res, i, NUM2LONG(cur), colconvert, enc_index));
+    rb_ary_store(a, j, cur == Qnil ? Qnil : spg__col_value(self, res, i, NUM2INT(cur), colconvert, enc_index));
   }
   return a;
 }
 
-static long spg__field_id(VALUE v, VALUE *colsyms, long nfields) {
-  long j;
+static int spg__field_id(VALUE v, VALUE *colsyms, long nfields) {
+  int j;
   for (j=0; j<nfields; j++) {
     if (colsyms[j] == v) {
       return j;
@@ -1275,7 +1275,7 @@ static long spg__field_id(VALUE v, VALUE *colsyms, long nfields) {
 
 static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
   long i;
-  long j;
+  int j;
   VALUE cur;
   long len = RARRAY_LEN(v);
   VALUE pg_columns = rb_ary_new2(len);
@@ -1288,9 +1288,9 @@ static VALUE spg__field_ids(VALUE v, VALUE *colsyms, long nfields) {
 }
 
 static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE *colconvert, int enc_index) {
-  long i;
-  long j;
-  long nfields;
+  int i;
+  int j;
+  int nfields;
   int timestamp_info = 0;
   int time_info = 0;
   VALUE conv_procs = 0;
@@ -1380,10 +1380,10 @@ static void spg_set_column_info(VALUE self, PGresult *res, VALUE *colsyms, VALUE
 }
 
 static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_index, VALUE* colsyms, VALUE* colconvert) {
-  long ntuples;
-  long nfields;
-  long i;
-  long j;
+  int ntuples;
+  int nfields;
+  int i;
+  int j;
   VALUE h;
   VALUE opts;
   VALUE pg_type;
@@ -1483,7 +1483,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_KV_HASH_GROUPS:
       /* Hash with single key and single value */
       {
-        VALUE k, v;
+        int k, v;
         h = rb_hash_new();
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
@@ -1511,7 +1511,8 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_MKV_HASH_GROUPS:
       /* Hash with array of keys and single value */
       {
-        VALUE k, v;
+        VALUE k;
+        int v;
         h = rb_hash_new();
         k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
@@ -1539,7 +1540,8 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_KMV_HASH_GROUPS:
       /* Hash with single keys and array of values */
       {
-        VALUE k, v;
+        VALUE v;
+        int k;
         h = rb_hash_new();
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
@@ -1621,7 +1623,7 @@ def_spg_yield_hash_rows(1664)
 
 static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   PGresult *res;
-  long nfields;
+  int nfields;
   int enc_index;
 
   if (!RTEST(rres)) {
@@ -1636,7 +1638,7 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
   else if (nfields <= 64) return spg_yield_hash_rows_64(self, res, enc_index);
   else if (nfields <= 256) return spg_yield_hash_rows_256(self, res, enc_index);
   else if (nfields <= 1664) return spg_yield_hash_rows_1664(self, res, enc_index);
-  else rb_raise(rb_eRangeError, "more than 1664 columns in query (%ld columns detected)", nfields);
+  else rb_raise(rb_eRangeError, "more than 1664 columns in query (%d columns detected)", nfields);
 
   /* UNREACHABLE */
   return self;
@@ -1678,7 +1680,7 @@ static void spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, voi
   VALUE *colconvert= data->colconvert;
   PGresult *res = pgresult_get(rres);
   int enc_index = data->enc_index;
-  long j;
+  int j;
 
   for(j=0; j<nfields; j++) {
     rb_hash_aset(h, colsyms[j], spg__col_value(self, res, 0, j, colconvert , enc_index));
@@ -1694,8 +1696,8 @@ static void spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, voi
 }
 
 static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, PGresult *res, int enc_index, VALUE *colsyms, VALUE *colconvert) {
-  long nfields;
-  long j;
+  int nfields;
+  int j;
   VALUE h;
   VALUE opts;
   VALUE pg_type;
@@ -1776,7 +1778,7 @@ static VALUE spg__yield_each_row(VALUE self) {
   VALUE rres;
   VALUE rconn;
   int enc_index;
-  long nfields;
+  int nfields;
 
   rconn = rb_ary_entry(self, 1);
   self = rb_ary_entry(self, 0);
@@ -1797,7 +1799,7 @@ static VALUE spg__yield_each_row(VALUE self) {
   else if (nfields <= 1664) return spg__yield_each_row_1664(self, rconn, rres, res, enc_index);
   else {
     rb_funcall(rres, spg_id_clear, 0);
-    rb_raise(rb_eRangeError, "more than 1664 columns in query (%ld columns detected)", nfields);
+    rb_raise(rb_eRangeError, "more than 1664 columns in query (%d columns detected)", nfields);
   }
 
   /* UNREACHABLE */
