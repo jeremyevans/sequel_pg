@@ -6,4 +6,4 @@
 /tmp
 /lib/*.so
 *.gem
-*.rbc
+/coverage

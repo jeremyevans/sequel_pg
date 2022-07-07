@@ -53,11 +53,13 @@ class Sequel::Postgres::Dataset
     end
   end
 
+  # :nocov:
   unless Sequel::Dataset.method_defined?(:as_hash)
     # Handle previous versions of Sequel that use to_hash instead of as_hash
     alias to_hash as_hash
     remove_method :as_hash
   end
+  # :nocov:
 
   # In the case where both arguments given, use an optimized version.
   def to_hash_groups(key_column, value_column = nil, opts = Sequel::OPTS)
@@ -120,8 +122,10 @@ if defined?(Sequel::Postgres::PGArray)
   # pg_array extension previously loaded
 
   class Sequel::Postgres::PGArray::Creator
+    # :nocov:
     # Avoid method redefined verbose warning
     alias call call if method_defined?(:call)
+    # :nocov:
 
     # Override Creator to use sequel_pg's C-based parser instead of the pure ruby parser.
     def call(string)

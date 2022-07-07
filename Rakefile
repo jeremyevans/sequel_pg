@@ -1,7 +1,6 @@
-require "rake"
 require "rake/clean"
 
-CLEAN.include %w'**.rbc rdoc'
+CLEAN.include %w'**.rbc rdoc coverage'
 
 desc "Do a full cleaning"
 task :distclean do
@@ -18,4 +17,19 @@ begin
   require 'rake/extensiontask'
   Rake::ExtensionTask.new('sequel_pg')
 rescue LoadError
+end
+
+# This assumes you have sequel checked out in ../sequel, and that
+# spec_postgres is setup to run Sequel's PostgreSQL specs.
+desc "Run Sequel's tests with coverage"
+task :spec_cov=>:compile do
+  ENV['RUBYLIB'] = "#{__dir__}/lib:#{ENV['RUBYLIB']}"
+  ENV['RUBYOPT'] = "-r #{__dir__}/spec/coverage_helper.rb #{ENV['RUBYOPT']}"
+  ENV['SIMPLECOV_COMMAND_NAME'] = "sequel_pg"
+  sh %'#{FileUtils::RUBY} -I ../sequel/lib spec/sequel_pg_spec.rb'
+
+  ENV['RUBYOPT'] = "-I lib -r sequel -r sequel/extensions/pg_array #{ENV['RUBYOPT']}"
+  ENV['SEQUEL_PG_STREAM'] = "1"
+  ENV['SIMPLECOV_COMMAND_NAME'] = "sequel"
+  sh %'cd ../sequel && #{FileUtils::RUBY} spec/adapter_spec.rb postgres'
 end

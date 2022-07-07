@@ -77,9 +77,16 @@ variables to specify the shared library and header directories.
 
 == Running the specs
 
-sequel_pg doesn't ship with it's own specs.  It's designed to
-replace a part of Sequel, so it just uses Sequel's specs.
-Specifically, the spec_postgres rake task from Sequel.
+sequel_pg is designed to replace a part of Sequel, so it shold be tested
+using Sequel's specs (the spec_postgres rake task).  There is a spec_cov
+task that assumes you have Sequel checked out at ../sequel, and uses a
+small spec suite for parts of sequel_pg not covered by Sequel's specs.
+It sets the SEQUEL_PG_STREAM environment variable when running Sequel's
+specs, make sure that spec/spec_config.rb in Sequel is set to connect
+to PostgreSQL and use the following additional settings:
+
+  DB.extension(:pg_streaming)
+  DB.stream_all_queries = true
 
 == Reporting issues/bugs
 
