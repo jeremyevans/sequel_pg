@@ -17,7 +17,7 @@ describe 'sequel_pg' do
     
     ds = db.dataset
     ds.optimize_model_load.must_equal true
-    proc{ds.optimize_model_load = false}.must_raise FrozenError
+    proc{ds.optimize_model_load = false}.must_raise RuntimeError
     ds.with_optimize_model_load(false).optimize_model_load.must_equal false
   end
 
