@@ -37,6 +37,6 @@ end
 desc "Run Sequel's tests with coverage"
 task :spec_ci=>:compile do
   ENV['SEQUEL_PG_SPEC_URL'] = ENV['SEQUEL_POSTGRES_URL'] = "postgres://localhost/?user=postgres&password=postgres"
-  sh %'#{FileUtils::RUBY} -I lib -I ../sequel/lib spec/sequel_pg_spec.rb'
-  sh %'cd ../sequel && #{FileUtils::RUBY} -I lib -I ../sequel_pg/lib spec/adapter_spec.rb postgres'
+  sh %'#{FileUtils::RUBY} -I lib -I sequel/lib spec/sequel_pg_spec.rb'
+  sh %'cd sequel && #{FileUtils::RUBY} -I lib -I ../lib spec/adapter_spec.rb postgres'
 end
