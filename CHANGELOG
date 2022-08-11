@@ -1,5 +1,7 @@
 === master
 
+* Modify LDFLAGS when building on MacOS arm64 to allow undefined functions (maxsz) (#46)
+
 * Adjust many internal C types to fix compilation warnings (jeremyevans)
 
 === 1.15.0 (2022-03-16)
