@@ -143,6 +143,12 @@ requirements:
   sequel_pg.  You should probably fix <tt>RbConfig::CONFIG['LDFLAGS']</tt>
   in that case.
 
+  Some versions of Mac OS may have a similar issue, but require manually
+  allowing each undefined function.  If you have problems installing on
+  Mac OS, you can try:
+
+    gem install sequel_pg -- --with-ldflags="-Wl,-U,_pg_get_pgconn -Wl,-U,_pg_get_result_enc_idx -Wl,-U,_pgresult_get -Wl,-U,_pgresult_stream_any"
+
 == Author
 
 Jeremy Evans <code@jeremyevans.net>
