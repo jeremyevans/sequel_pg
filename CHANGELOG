@@ -1,6 +1,6 @@
 === 1.16.0 (2022-08-16)
 
-* Fix memory leak when using streaming with 1.3.4+ (jeremyevans) (#48)
+* Fix memory leak when using streaming with pg 1.3.4+ (jeremyevans) (#48)
 
 * Modify LDFLAGS when building on MacOS arm64 to allow undefined functions (maxsz) (#46)
 
