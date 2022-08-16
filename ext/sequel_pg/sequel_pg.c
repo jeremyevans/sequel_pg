@@ -1693,6 +1693,7 @@ static void spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, voi
   } else {
     rb_yield(h);
   }
+  PQclear(res);
 }
 
 static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, PGresult *res, int enc_index, VALUE *colsyms, VALUE *colconvert) {

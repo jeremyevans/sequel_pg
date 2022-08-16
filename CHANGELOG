@@ -1,5 +1,7 @@
 === master
 
+* Fix memory leak when using streaming with 1.3.4+ (jeremyevans) (#48)
+
 * Modify LDFLAGS when building on MacOS arm64 to allow undefined functions (maxsz) (#46)
 
 * Adjust many internal C types to fix compilation warnings (jeremyevans)
