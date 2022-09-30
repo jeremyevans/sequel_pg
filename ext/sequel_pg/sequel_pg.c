@@ -70,7 +70,7 @@
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
 int pg_get_result_enc_idx(VALUE);
-VALUE pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* data);
+VALUE pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* data);
 
 static int spg_use_ipaddr_alloc;
 static int spg_use_pg_get_result_enc_idx;
@@ -1672,7 +1672,7 @@ struct spg__yield_each_row_stream_data {
   char type;
 };
 
-static void spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, void *rdata) {
+static int spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, void *rdata) {
   struct spg__yield_each_row_stream_data* data = (struct spg__yield_each_row_stream_data *)rdata;
   VALUE h = rb_hash_new();
   VALUE self = data->self;
@@ -1693,7 +1693,7 @@ static void spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, voi
   } else {
     rb_yield(h);
   }
-  PQclear(res);
+  return 1; /* clear the result */
 }
 
 static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, PGresult *res, int enc_index, VALUE *colsyms, VALUE *colconvert) {
@@ -1868,7 +1868,7 @@ void Init_sequel_pg(void) {
       if (FIX2INT(RARRAY_AREF(c, 1)) >= 2) {
         spg_use_pg_get_result_enc_idx = 1;
       }
-      if (FIX2INT(RARRAY_AREF(c, 1)) > 3 || (FIX2INT(RARRAY_AREF(c, 1)) == 3 && FIX2INT(RARRAY_AREF(c, 2)) >= 4)) {
+      if (FIX2INT(RARRAY_AREF(c, 1)) > 4 || (FIX2INT(RARRAY_AREF(c, 1)) == 4 && FIX2INT(RARRAY_AREF(c, 2)) >= 4)) {
         spg_use_pg_stream_any = 1;
       }
     }
