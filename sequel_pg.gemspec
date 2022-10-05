@@ -22,7 +22,7 @@ SEQUEL_PG_GEMSPEC = Gem::Specification.new do |s|
       'bug_tracker_uri'   => 'https://github.com/jeremyevans/sequel_pg/issues',
       'changelog_uri'     => 'https://github.com/jeremyevans/sequel_pg/blob/master/CHANGELOG',
       'documentation_uri' => 'https://github.com/jeremyevans/sequel_pg/blob/master/README.rdoc',
-      'mailing_list_uri'  => 'https://groups.google.com/forum/#!forum/sequel-talk',
+      'mailing_list_uri'  => 'https://github.com/jeremyevans/sequel_pg/discussions',
       'source_code_uri'   => 'https://github.com/jeremyevans/sequel_pg',
     }
   end
