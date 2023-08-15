@@ -67,10 +67,10 @@
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 
 /* External functions defined by ruby-pg */
-PGconn* pg_get_pgconn(VALUE);
-PGresult* pgresult_get(VALUE);
-int pg_get_result_enc_idx(VALUE);
-VALUE pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* data);
+PGconn* (*pg_get_pgconn)(VALUE);
+PGresult* (*pgresult_get)(VALUE);
+int (*pg_get_result_enc_idx)(VALUE);
+VALUE (*pgresult_stream_any)(VALUE self, int (*yielder)(VALUE, int, int, void*), void* data);
 
 static int spg_use_ipaddr_alloc;
 static int spg_use_pg_get_result_enc_idx;
@@ -1847,6 +1847,11 @@ static VALUE spg_yield_each_row(VALUE self, VALUE rconn) {
 
 void Init_sequel_pg(void) {
   VALUE c, spg_Postgres;
+
+  pg_get_pgconn = (PGconn*(*)(VALUE))resolve_ext_symbol("pg_ext", "pg_get_pgconn");
+  pgresult_get = (PGresult*(*)(VALUE))resolve_ext_symbol("pg_ext", "pgresult_get");
+  pg_get_result_enc_idx = (int(*)(VALUE))resolve_ext_symbol("pg_ext", "pg_get_result_enc_idx");
+  pgresult_stream_any = (VALUE(*)(VALUE, int (*yielder)(VALUE, int, int, void*), void*))resolve_ext_symbol("pg_ext", "pgresult_stream_any");
 
   spg_Sequel = rb_const_get(rb_cObject, rb_intern("Sequel"));
   rb_gc_register_mark_object(spg_Sequel);
