@@ -77,7 +77,7 @@ variables to specify the shared library and header directories.
 
 == Running the specs
 
-sequel_pg is designed to replace a part of Sequel, so it shold be tested
+sequel_pg is designed to replace a part of Sequel, so it should be tested
 using Sequel's specs (the spec_postgres rake task).  There is a spec_cov
 task that assumes you have Sequel checked out at ../sequel, and uses a
 small spec suite for parts of sequel_pg not covered by Sequel's specs.
