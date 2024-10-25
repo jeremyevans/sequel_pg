@@ -1,4 +1,4 @@
-name: CI
+Roman name: CI
 
 on:
   push:
