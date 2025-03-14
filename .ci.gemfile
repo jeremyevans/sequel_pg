@@ -20,6 +20,9 @@ if RUBY_VERSION < '2.2.0'
   gem 'activemodel', '<5.0.0'
 elsif RUBY_VERSION < '2.4.0'
   gem 'activemodel', '<6.0.0'
+elsif RUBY_VERSION < '2.7.0'
+  gem 'concurrent-ruby', '1.3.4'
+  gem 'activemodel'
 else
   gem 'activemodel'
 end
