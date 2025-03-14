@@ -879,7 +879,7 @@ static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int e
       break;
     case 17: /* bytea */
       bi.blob_string = (char *)PQunescapeBytea((unsigned char*)v, &bi.length);
-      rv = rb_ensure(spg_create_Blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
+      rv = rb_ensure(spg_create_Blob, (VALUE)&bi, (VALUE(*)(VALUE))PQfreemem, (VALUE)bi.blob_string);
       break;
     case 20: /* integer */
     case 21:
@@ -1031,7 +1031,7 @@ static VALUE spg__col_value(VALUE self, PGresult *res, int i, int j, VALUE* colc
         break;
       case 17: /* bytea */
         bi.blob_string = (char *)PQunescapeBytea((unsigned char*)v, &bi.length);
-        rv = rb_ensure(spg_create_Blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
+        rv = rb_ensure(spg_create_Blob, (VALUE)&bi, (VALUE(*)(VALUE))PQfreemem, (VALUE)bi.blob_string);
         break;
       case 20: /* integer */
       case 21:

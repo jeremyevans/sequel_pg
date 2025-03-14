@@ -1,3 +1,7 @@
+=== master
+
+* Add explicit arguments to PQfreemem casts to avoid compilation issues when using the C23 standard (jeremyevans) (#59)
+
 === 1.17.1 (2023-01-05)
 
 * Modify LDFLAGS when building on MacOS to allow undefined functions (delphaber) (#53)
