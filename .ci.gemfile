@@ -8,47 +8,47 @@ gem 'minitest-global_expectations'
 # Plugin/Extension Dependencies
 gem 'tzinfo'
 
-if RUBY_VERSION < '2.1.0'
-  gem 'nokogiri', '<1.7.0'
-elsif RUBY_VERSION < '2.3.0'
-  gem 'nokogiri', '<1.10.0'
+if RUBY_VERSION < '2.1'
+  gem 'nokogiri', '<1.7'
+elsif RUBY_VERSION < '2.3'
+  gem 'nokogiri', '<1.10'
 else
   gem 'nokogiri'
 end
 
-if RUBY_VERSION < '2.2.0'
-  gem 'activemodel', '<5.0.0'
-elsif RUBY_VERSION < '2.4.0'
-  gem 'activemodel', '<6.0.0'
-elsif RUBY_VERSION < '2.7.0'
+if RUBY_VERSION < '2.2'
+  gem 'activemodel', '<5'
+elsif RUBY_VERSION < '2.4'
+  gem 'activemodel', '<6'
+elsif RUBY_VERSION < '2.7'
   gem 'concurrent-ruby', '1.3.4'
   gem 'activemodel'
 else
   gem 'activemodel'
 end
 
-if RUBY_VERSION < '3.1.0' && RUBY_VERSION >= '3.0.0'
+if RUBY_VERSION < '3.1' && RUBY_VERSION >= '3'
   gem 'json', '2.5.1'
   gem 'rake'
-elsif RUBY_VERSION < '2.0.0'
+elsif RUBY_VERSION < '2'
   gem 'json', '<1.8.5'
-  gem 'rake', '<10.0.0'
+  gem 'rake', '<10'
 else
   gem 'json'
   gem 'rake'
 end
 
-if RUBY_VERSION < '2.4.0'
+if RUBY_VERSION < '2.4'
   # Until mintest 5.12.0 is fixed
   gem 'minitest', '5.11.3'
 else
-  gem 'minitest', '>= 5.7.0'
+  gem 'minitest', '>=5.7'
 end
 
-if RUBY_VERSION < '2.0.0'
-  gem "pg", '<0.19.0'
+if RUBY_VERSION < '2'
+  gem "pg", '<0.19'
   gem 'rake-compiler', '<1'
 else
-  gem "pg", RUBY_VERSION < '2.2.0' ? '<1.2.0' : '>0'
+  gem "pg", RUBY_VERSION < '2.2' ? '<1.2' : '>0'
   gem 'rake-compiler'
 end
