@@ -127,13 +127,26 @@ requirements:
   PostgreSQL defaulting to ISO, Sequel also manually sets the
   date format to ISO by default, so unless you are overriding that
   setting (via DB.use_iso_date_format = false), you should be OK.
+
 * Adding your own type conversion procs only has an effect if those
   types are not handled by default.
+
 * You do not need to require the library, the sequel postgres adapter
   will require it automatically.  If you are using bundler, you
   should add it to your Gemfile like so:
 
-    gem 'sequel_pg', :require=>'sequel'
+    gem 'sequel_pg', require: 'sequel'
+
+* Using a precompiled pg gem can cause issues in certain cases,
+  since it statically links a libpq that could differ from the system
+  libpq dynamically linked to the sequel_pg gem. You can work around
+  the issue by forcing the ruby platform for the pg gem:
+
+    # Manual install
+    gem install pg --platform ruby
+
+    # Gemfile
+    gem 'pg', force_ruby_platform: true
 
 * sequel_pg currently calls functions defined in the pg gem, which
   does not work on Windows and does not work in some unix-like
