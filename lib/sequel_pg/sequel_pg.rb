@@ -21,6 +21,17 @@ class Sequel::Postgres::Dataset
     opts.has_key?(:optimize_model_load) ?  opts[:optimize_model_load] : true
   end
 
+  # :nocov:
+  if method_defined?(:as_set)
+  # :nocov:
+    # Always use optimized version
+    def as_set(column)
+      rows = Set.new
+      clone(:_sequel_pg_type=>:map, :_sequel_pg_value=>column).fetch_rows(sql){|s| rows.add(s)}
+      rows
+    end
+  end
+
   # In the case where an argument is given, use an optimized version.
   def map(sym=nil)
     if sym
@@ -99,6 +110,24 @@ class Sequel::Postgres::Dataset
     rows = []
     clone(:_sequel_pg_type=>:first).fetch_rows(sql){|s| rows << s}
     rows
+  end
+
+  # :nocov:
+  if method_defined?(:_select_set_multiple)
+  # :nocov:
+    # Always use optimized version
+    def _select_set_multiple(ret_cols)
+      set = Set.new
+      clone(:_sequel_pg_type=>:array).fetch_rows(sql){|s| set.add s}
+      set
+    end
+
+    # Always use optimized version
+    def _select_set_single
+      set = Set.new
+      clone(:_sequel_pg_type=>:first).fetch_rows(sql){|s| set.add s}
+      set
+    end
   end
 
   private

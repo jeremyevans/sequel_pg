@@ -1,3 +1,7 @@
+=== master
+
+* Optimize Dataset#as_set and #select_set in Sequel 5.99+ (jeremyevans)
+
 === 1.17.2 (2025-03-14)
 
 * Add explicit arguments to PQfreemem casts to avoid compilation issues when using the C23 standard (jeremyevans) (#59)
