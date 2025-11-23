@@ -24,6 +24,10 @@
 #define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
+#if !HAVE_RB_HASH_NEW_CAPA
+#define rb_hash_new_capa(_) rb_hash_new()
+#endif
+
 #define ntohll(c) ((uint64_t)( \
     (((uint64_t)(*((unsigned char*)(c)+0)))<<56LL) | \
     (((uint64_t)(*((unsigned char*)(c)+1)))<<48LL) | \
@@ -1445,7 +1449,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_NORMAL:
       /* Normal, hash for entire row */
       for(i=0; i<ntuples; i++) {
-        h = rb_hash_new();
+        h = rb_hash_new_capa(nfields);
         for(j=0; j<nfields; j++) {
           rb_hash_aset(h, colsyms[j], spg__col_value(self, res, i, j, colconvert, enc_index));
         }
@@ -1522,15 +1526,16 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
       /* Hash with single key and single value */
       {
         int k, v;
-        h = rb_hash_new();
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_KV_HASH) {
+          h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
             rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert, enc_index), spg__col_value(self, res, i, v, colconvert, enc_index));
           } 
         } else {
           VALUE kv, vv, a;
+          h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
             kv = spg__col_value(self, res, i, k, colconvert, enc_index);
             vv = spg__col_value(self, res, i, v, colconvert, enc_index);
@@ -1551,15 +1556,16 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
       {
         VALUE k;
         int v;
-        h = rb_hash_new();
         k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_MKV_HASH) {
+          h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
             rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index), spg__col_value(self, res, i, v, colconvert, enc_index));
           } 
         } else {
           VALUE kv, vv, a;
+          h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
             kv = spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index);
             vv = spg__col_value(self, res, i, v, colconvert, enc_index);
@@ -1580,15 +1586,16 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
       {
         VALUE v;
         int k;
-        h = rb_hash_new();
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_KMV_HASH) {
+          h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
             rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert, enc_index), spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index));
           } 
         } else {
           VALUE kv, vv, a;
+          h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
             kv = spg__col_value(self, res, i, k, colconvert, enc_index);
             vv = spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index);
@@ -1608,15 +1615,16 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
       /* Hash with array of keys and array of values */
       {
         VALUE k, v;
-        h = rb_hash_new();
         k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_MKMV_HASH) {
+          h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
             rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index), spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index));
           } 
         } else {
           VALUE kv, vv, a;
+          h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
             kv = spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index);
             vv = spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index);
@@ -1634,7 +1642,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_MODEL:
       /* Model object for entire row */
       for(i=0; i<ntuples; i++) {
-        h = rb_hash_new();
+        h = rb_hash_new_capa(nfields);
         for(j=0; j<nfields; j++) {
           rb_hash_aset(h, colsyms[j], spg__col_value(self, res, i, j, colconvert, enc_index));
         }
@@ -1712,7 +1720,7 @@ struct spg__yield_each_row_stream_data {
 
 static int spg__yield_each_row_stream(VALUE rres, int ntuples, int nfields, void *rdata) {
   struct spg__yield_each_row_stream_data* data = (struct spg__yield_each_row_stream_data *)rdata;
-  VALUE h = rb_hash_new();
+  VALUE h = rb_hash_new_capa(nfields);
   VALUE self = data->self;
   VALUE *colsyms = data->colsyms;
   VALUE *colconvert= data->colconvert;
@@ -1773,7 +1781,7 @@ static VALUE spg__yield_each_row_internal(VALUE self, VALUE rconn, VALUE rres, P
   }
 
   while (PQntuples(res) != 0) {
-    h = rb_hash_new();
+    h = rb_hash_new_capa(nfields);
     for(j=0; j<nfields; j++) {
       rb_hash_aset(h, colsyms[j], spg__col_value(self, res, 0, j, colconvert , enc_index));
     }
