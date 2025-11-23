@@ -8,6 +8,7 @@ dir_config('pg', ENV["POSTGRES_INCLUDE"] || (IO.popen("pg_config --includedir").
 
 if (have_library('pq') || have_library('libpq') || have_library('ms/libpq')) && have_header('libpq-fe.h')
   have_func 'rb_hash_new_capa'
+  have_func 'rb_set_new_capa'
   have_func 'PQsetSingleRowMode'
   have_func 'timegm'
   create_makefile("sequel_pg")

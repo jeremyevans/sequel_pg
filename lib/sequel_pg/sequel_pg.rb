@@ -24,12 +24,20 @@ class Sequel::Postgres::Dataset
   # :nocov:
   if method_defined?(:as_set)
   # :nocov:
-    # Always use optimized version
-    def as_set(column)
-      rows = Set.new
-      clone(:_sequel_pg_type=>:map, :_sequel_pg_value=>column).fetch_rows(sql){|s| rows.add(s)}
-      rows
+    if RUBY_VERSION > '4'
+      def as_set(column)
+        clone(:_sequel_pg_type=>:map_set, :_sequel_pg_value=>column).fetch_rows(sql){return it}
+        Set.new
+      end
+    # :nocov:
+    else
+      def as_set(column)
+        rows = Set.new
+        clone(:_sequel_pg_type=>:map, :_sequel_pg_value=>column).fetch_rows(sql){|s| rows.add(s)}
+        rows
+      end
     end
+    # :nocov:
   end
 
   # In the case where an argument is given, use an optimized version.

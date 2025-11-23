@@ -1,5 +1,7 @@
 === master
 
+* Further optimize Dataset#as_set on Ruby 4+ using core Set C-API (jeremyevans)
+
 * Use rb_hash_new_capa if available to avoid unnecessary hash resizing (jeremyevans)
 
 * Further optimize Dataset#map and #select_map by populating array in C instead of yielding to Ruby (jeremyevans)
