@@ -1,5 +1,7 @@
 === master
 
+* Further optimize Dataset#map by populating array in C instead of yielding to Ruby (jeremyevans)
+
 * Optimize Dataset#as_set and #select_set in Sequel 5.99+ (jeremyevans)
 
 === 1.17.2 (2025-03-14)

@@ -65,6 +65,8 @@
 #define SPG_YIELD_MKV_HASH_GROUPS 11
 #define SPG_YIELD_KMV_HASH_GROUPS 12
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
+#define SPG_YIELD_COLUMN_ARRAY 14
+#define SPG_YIELD_COLUMNS_ARRAY 15
 
 /* External functions defined by ruby-pg */
 PGconn* pg_get_pgconn(VALUE);
@@ -91,6 +93,7 @@ static VALUE spg_vmasks6;
 static VALUE spg_sym_utc;
 static VALUE spg_sym_local;
 static VALUE spg_sym_map;
+static VALUE spg_sym_map_array;
 static VALUE spg_sym_first;
 static VALUE spg_sym_array;
 static VALUE spg_sym_hash;
@@ -1405,6 +1408,12 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         } else if (rb_type(pg_value) == T_ARRAY) {
           type = SPG_YIELD_COLUMNS;
         }
+      } else if (pg_type == spg_sym_map_array) {
+        if (SYMBOL_P(pg_value)) {
+          type = SPG_YIELD_COLUMN_ARRAY;
+        } else if (rb_type(pg_value) == T_ARRAY) {
+          type = SPG_YIELD_COLUMNS_ARRAY;
+        }
       } else if (pg_type == spg_sym_first) {
         type = SPG_YIELD_FIRST;
       } else if (pg_type == spg_sym_array) {
@@ -1462,6 +1471,35 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
       for(i=0; i<ntuples; i++) {
         rb_yield(spg__col_values(self, h, colsyms, nfields, res, i, colconvert, enc_index));
       } 
+      break;
+    case SPG_YIELD_COLUMN_ARRAY:
+      /* Array containing single column */
+      {
+        VALUE ary = rb_ary_new2(ntuples);
+        j = spg__field_id(pg_value, colsyms, nfields);
+        if (j == -1) {
+          for(i=0; i<ntuples; i++) {
+            rb_ary_store(ary, i, Qnil);
+          } 
+        }
+        else {
+          for(i=0; i<ntuples; i++) {
+            rb_ary_store(ary, i, spg__col_value(self, res, i, j, colconvert, enc_index));
+          } 
+        }
+        rb_yield(ary);
+      }
+      break;
+    case SPG_YIELD_COLUMNS_ARRAY:
+      /* Array containing arrays of columns */
+      {
+        VALUE ary = rb_ary_new2(ntuples);
+        h = spg__field_ids(pg_value, colsyms, nfields);
+        for(i=0; i<ntuples; i++) {
+          rb_ary_store(ary, i, spg__col_values(self, h, colsyms, nfields, res, i, colconvert, enc_index));
+        } 
+        rb_yield(ary);
+      }
       break;
     case SPG_YIELD_FIRST:
       /* First column */
@@ -1918,6 +1956,7 @@ void Init_sequel_pg(void) {
   spg_sym_utc = ID2SYM(rb_intern("utc"));
   spg_sym_local = ID2SYM(rb_intern("local"));
   spg_sym_map = ID2SYM(rb_intern("map"));
+  spg_sym_map_array = ID2SYM(rb_intern("map_array"));
   spg_sym_first = ID2SYM(rb_intern("first"));
   spg_sym_array = ID2SYM(rb_intern("array"));
   spg_sym_hash = ID2SYM(rb_intern("hash"));

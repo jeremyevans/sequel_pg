@@ -38,9 +38,7 @@ class Sequel::Postgres::Dataset
       if block_given?
         super
       else
-        rows = []
-        clone(:_sequel_pg_type=>:map, :_sequel_pg_value=>sym).fetch_rows(sql){|s| rows << s}
-        rows
+        clone(:_sequel_pg_type=>:map_array, :_sequel_pg_value=>sym).fetch_rows(sql){|a| return a}
       end
     else
       super
