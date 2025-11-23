@@ -77,6 +77,8 @@
 #define SPG_YIELD_COLUMNS_SET 19
 #define SPG_YIELD_FIRST_SET 20
 #define SPG_YIELD_ARRAY_SET 21
+#define SPG_YIELD_ALL 22
+#define SPG_YIELD_ALL_MODEL 23
 
 /* External functions defined by ruby-pg */
 PGconn* pg_get_pgconn(VALUE);
@@ -114,6 +116,8 @@ static VALUE spg_sym_array_set;
 static VALUE spg_sym_hash;
 static VALUE spg_sym_hash_groups;
 static VALUE spg_sym_model;
+static VALUE spg_sym_all;
+static VALUE spg_sym_all_model;
 static VALUE spg_sym__sequel_pg_type;
 static VALUE spg_sym__sequel_pg_value;
 
@@ -1470,6 +1474,10 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         }
       } else if (pg_type == spg_sym_model && rb_type(pg_value) == T_CLASS) {
         type = SPG_YIELD_MODEL;
+      } else if (pg_type == spg_sym_all_model && rb_type(pg_value) == T_CLASS) {
+        type = SPG_YIELD_ALL_MODEL;
+      } else if (pg_type == spg_sym_all) {
+        type = SPG_YIELD_ALL;
       }
     }
   }
@@ -1758,6 +1766,35 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         pg_type = rb_obj_alloc(pg_value);
         rb_ivar_set(pg_type, spg_id_values, h);
         rb_yield(pg_type);
+      }
+      break;
+    case SPG_YIELD_ALL_MODEL:
+      {
+        VALUE ary = rb_ary_new2(ntuples);
+        VALUE obj;
+        for(i=0; i<ntuples; i++) {
+          h = rb_hash_new_capa(nfields);
+          for(j=0; j<nfields; j++) {
+            rb_hash_aset(h, colsyms[j], spg__col_value(self, res, i, j, colconvert, enc_index));
+          }
+          obj = rb_obj_alloc(pg_value);
+          rb_ivar_set(obj, spg_id_values, h);
+          rb_ary_store(ary, i, obj);
+        }
+        rb_yield(ary);
+      }
+      break;
+    case SPG_YIELD_ALL:
+      {
+        VALUE ary = rb_ary_new2(ntuples);
+        for(i=0; i<ntuples; i++) {
+          h = rb_hash_new_capa(nfields);
+          for(j=0; j<nfields; j++) {
+            rb_hash_aset(h, colsyms[j], spg__col_value(self, res, i, j, colconvert, enc_index));
+          }
+          rb_ary_store(ary, i, h);
+        }
+        rb_yield(ary);
       }
       break;
   }
@@ -2083,6 +2120,8 @@ void Init_sequel_pg(void) {
   spg_sym_hash = ID2SYM(rb_intern("hash"));
   spg_sym_hash_groups = ID2SYM(rb_intern("hash_groups"));
   spg_sym_model = ID2SYM(rb_intern("model"));
+  spg_sym_all = ID2SYM(rb_intern("all"));
+  spg_sym_all_model = ID2SYM(rb_intern("all_model"));
   spg_sym__sequel_pg_type = ID2SYM(rb_intern("_sequel_pg_type"));
   spg_sym__sequel_pg_value = ID2SYM(rb_intern("_sequel_pg_value"));
 

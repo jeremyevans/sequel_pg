@@ -1,5 +1,7 @@
 === master
 
+* Optimize Dataset#all and #with_sql_all (jeremyevans)
+
 * Fix runtime warnings when using Dataset#as_hash and #to_hash_groups with invalid columns (jeremyevans)
 
 * Fix Dataset#map return value when the null_dataset extension is used (jeremyevans)
