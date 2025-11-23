@@ -1629,19 +1629,22 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
       /* Hash with single key and single value */
       {
         int k, v;
+        VALUE kv, vv;
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_KV_HASH) {
           h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
-            rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert, enc_index), spg__col_value(self, res, i, v, colconvert, enc_index));
+            kv = k == -1 ? Qnil : spg__col_value(self, res, i, k, colconvert, enc_index);
+            vv = v == -1 ? Qnil : spg__col_value(self, res, i, v, colconvert, enc_index);
+            rb_hash_aset(h, kv, vv);
           } 
         } else {
-          VALUE kv, vv, a;
+          VALUE a;
           h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
-            kv = spg__col_value(self, res, i, k, colconvert, enc_index);
-            vv = spg__col_value(self, res, i, v, colconvert, enc_index);
+            kv = k == -1 ? Qnil : spg__col_value(self, res, i, k, colconvert, enc_index);
+            vv = v == -1 ? Qnil : spg__col_value(self, res, i, v, colconvert, enc_index);
             a = rb_hash_lookup(h, kv);
             if(!RTEST(a)) {
               rb_hash_aset(h, kv, rb_ary_new3(1, vv));
@@ -1657,21 +1660,22 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_MKV_HASH_GROUPS:
       /* Hash with array of keys and single value */
       {
-        VALUE k;
+        VALUE k, vv;
         int v;
         k = spg__field_ids(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_id(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_MKV_HASH) {
           h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
-            rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index), spg__col_value(self, res, i, v, colconvert, enc_index));
+            vv = v == -1 ? Qnil : spg__col_value(self, res, i, v, colconvert, enc_index);
+            rb_hash_aset(h, spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index), vv);
           } 
         } else {
-          VALUE kv, vv, a;
+          VALUE kv, a;
           h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
             kv = spg__col_values(self, k, colsyms, nfields, res, i, colconvert, enc_index);
-            vv = spg__col_value(self, res, i, v, colconvert, enc_index);
+            vv = v == -1 ? Qnil : spg__col_value(self, res, i, v, colconvert, enc_index);
             a = rb_hash_lookup(h, kv);
             if(!RTEST(a)) {
               rb_hash_aset(h, kv, rb_ary_new3(1, vv));
@@ -1687,20 +1691,21 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
     case SPG_YIELD_KMV_HASH_GROUPS:
       /* Hash with single keys and array of values */
       {
-        VALUE v;
+        VALUE v, kv;
         int k;
         k = spg__field_id(rb_ary_entry(pg_value, 0), colsyms, nfields);
         v = spg__field_ids(rb_ary_entry(pg_value, 1), colsyms, nfields);
         if(type == SPG_YIELD_KMV_HASH) {
           h = rb_hash_new_capa(ntuples);
           for(i=0; i<ntuples; i++) {
-            rb_hash_aset(h, spg__col_value(self, res, i, k, colconvert, enc_index), spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index));
+            kv = k == -1 ? Qnil : spg__col_value(self, res, i, k, colconvert, enc_index);
+            rb_hash_aset(h, kv, spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index));
           } 
         } else {
-          VALUE kv, vv, a;
+          VALUE vv, a;
           h = rb_hash_new();
           for(i=0; i<ntuples; i++) {
-            kv = spg__col_value(self, res, i, k, colconvert, enc_index);
+            kv = k == -1 ? Qnil : spg__col_value(self, res, i, k, colconvert, enc_index);
             vv = spg__col_values(self, v, colsyms, nfields, res, i, colconvert, enc_index);
             a = rb_hash_lookup(h, kv);
             if(!RTEST(a)) {
