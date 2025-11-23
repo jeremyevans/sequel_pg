@@ -71,6 +71,8 @@
 #define SPG_YIELD_MKMV_HASH_GROUPS 13
 #define SPG_YIELD_COLUMN_ARRAY 14
 #define SPG_YIELD_COLUMNS_ARRAY 15
+#define SPG_YIELD_FIRST_ARRAY 16
+#define SPG_YIELD_ARRAY_ARRAY 17
 
 /* External functions defined by ruby-pg */
 PGconn* pg_get_pgconn(VALUE);
@@ -99,7 +101,9 @@ static VALUE spg_sym_local;
 static VALUE spg_sym_map;
 static VALUE spg_sym_map_array;
 static VALUE spg_sym_first;
+static VALUE spg_sym_first_array;
 static VALUE spg_sym_array;
+static VALUE spg_sym_array_array;
 static VALUE spg_sym_hash;
 static VALUE spg_sym_hash_groups;
 static VALUE spg_sym_model;
@@ -1422,6 +1426,10 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         type = SPG_YIELD_FIRST;
       } else if (pg_type == spg_sym_array) {
         type = SPG_YIELD_ARRAY;
+      } else if (pg_type == spg_sym_first_array) {
+        type = SPG_YIELD_FIRST_ARRAY;
+      } else if (pg_type == spg_sym_array_array) {
+        type = SPG_YIELD_ARRAY_ARRAY;
       } else if ((pg_type == spg_sym_hash || pg_type == spg_sym_hash_groups) && rb_type(pg_value) == T_ARRAY) {
         VALUE pg_value_key, pg_value_value;
         pg_value_key = rb_ary_entry(pg_value, 0);
@@ -1520,6 +1528,28 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         }
         rb_yield(h);
       } 
+      break;
+    case SPG_YIELD_FIRST_ARRAY:
+      /* Array of first column */
+      h = rb_ary_new2(ntuples);
+      for(i=0; i<ntuples; i++) {
+        rb_ary_store(h, i, spg__col_value(self, res, i, 0, colconvert, enc_index));
+      } 
+      rb_yield(h);
+      break;
+    case SPG_YIELD_ARRAY_ARRAY:
+      /* Array of arrays of all columns */
+      {
+        VALUE ary = rb_ary_new2(ntuples);
+        for(i=0; i<ntuples; i++) {
+          h = rb_ary_new2(nfields);
+          for(j=0; j<nfields; j++) {
+            rb_ary_store(h, j, spg__col_value(self, res, i, j, colconvert, enc_index));
+          }
+          rb_ary_store(ary, i, h);
+        } 
+        rb_yield(ary);
+      }
       break;
     case SPG_YIELD_KV_HASH:
     case SPG_YIELD_KV_HASH_GROUPS:
@@ -1967,6 +1997,8 @@ void Init_sequel_pg(void) {
   spg_sym_map_array = ID2SYM(rb_intern("map_array"));
   spg_sym_first = ID2SYM(rb_intern("first"));
   spg_sym_array = ID2SYM(rb_intern("array"));
+  spg_sym_first_array = ID2SYM(rb_intern("first_array"));
+  spg_sym_array_array = ID2SYM(rb_intern("array_array"));
   spg_sym_hash = ID2SYM(rb_intern("hash"));
   spg_sym_hash_groups = ID2SYM(rb_intern("hash_groups"));
   spg_sym_model = ID2SYM(rb_intern("model"));

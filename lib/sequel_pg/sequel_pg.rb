@@ -98,16 +98,14 @@ class Sequel::Postgres::Dataset
 
   # Always use optimized version
   def _select_map_multiple(ret_cols)
-    rows = []
-    clone(:_sequel_pg_type=>:array).fetch_rows(sql){|s| rows << s}
-    rows
+    clone(:_sequel_pg_type=>:array_array).fetch_rows(sql){|a| return a}
+    []
   end
 
   # Always use optimized version
   def _select_map_single
-    rows = []
-    clone(:_sequel_pg_type=>:first).fetch_rows(sql){|s| rows << s}
-    rows
+    clone(:_sequel_pg_type=>:first_array).fetch_rows(sql){|a| return a}
+    []
   end
 
   # :nocov:
