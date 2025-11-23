@@ -119,19 +119,35 @@ class Sequel::Postgres::Dataset
   # :nocov:
   if method_defined?(:_select_set_multiple)
   # :nocov:
-    # Always use optimized version
-    def _select_set_multiple(ret_cols)
-      set = Set.new
-      clone(:_sequel_pg_type=>:array).fetch_rows(sql){|s| set.add s}
-      set
-    end
+    if RUBY_VERSION > '4'
+      # Always use optimized version
+      def _select_set_multiple(ret_cols)
+        clone(:_sequel_pg_type=>:array_set).fetch_rows(sql){return it}
+        Set.new
+      end
 
-    # Always use optimized version
-    def _select_set_single
-      set = Set.new
-      clone(:_sequel_pg_type=>:first).fetch_rows(sql){|s| set.add s}
-      set
+      # Always use optimized version
+      def _select_set_single
+        clone(:_sequel_pg_type=>:first_set).fetch_rows(sql){return it}
+        Set.new
+      end
+    # :nocov:
+    else
+      # Always use optimized version
+      def _select_set_multiple(ret_cols)
+        set = Set.new
+        clone(:_sequel_pg_type=>:array).fetch_rows(sql){|s| set.add s}
+        set
+      end
+
+      # Always use optimized version
+      def _select_set_single
+        set = Set.new
+        clone(:_sequel_pg_type=>:first).fetch_rows(sql){|s| set.add s}
+        set
+      end
     end
+    # :nocov:
   end
 
   private
