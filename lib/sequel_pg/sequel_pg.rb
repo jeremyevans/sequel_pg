@@ -47,6 +47,7 @@ class Sequel::Postgres::Dataset
         super
       else
         clone(:_sequel_pg_type=>:map_array, :_sequel_pg_value=>sym).fetch_rows(sql){|a| return a}
+        []
       end
     else
       super

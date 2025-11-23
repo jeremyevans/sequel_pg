@@ -1,5 +1,7 @@
 === master
 
+* Fix Dataset#map return value when the null_dataset extension is used (jeremyevans)
+
 * Further optimize Dataset#as_set and #select_set on Ruby 4+ using core Set C-API (jeremyevans)
 
 * Use rb_hash_new_capa if available to avoid unnecessary hash resizing (jeremyevans)
