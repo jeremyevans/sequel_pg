@@ -91,28 +91,19 @@ class Sequel::Postgres::Dataset
     end
   end
 
-  # If model loads are being optimized and this is a model load, use the optimized
-  # version.
-  def each(&block)
-    if optimize_model_load?
-      clone(:_sequel_pg_type=>:model, :_sequel_pg_value=>row_proc).fetch_rows(sql, &block)
-    else
-      super
-    end
-  end
-
   # Delegate to with_sql_all using the default SQL
   def all(&block)
     with_sql_all(sql, &block)
   end
 
-  # Always use optimized version
+  # :nocov:
+  # Generally overridden by the model support, only used if the model
+  # support is not used.
   def with_sql_all(sql, &block)
-    return super if opts[:graph] || opts[:cursor]
-    type = optimize_model_load? ? :all_model : :all
-    rp = row_proc
-    clone(:_sequel_pg_type=>type, :_sequel_pg_value=>rp).fetch_rows(sql) do |array|
-      if rp && type == :all
+    return super unless allow_sequel_pg_optimization?
+
+    clone(:_sequel_pg_type=>:all).fetch_rows(sql) do |array|
+      if rp = row_proc
         array.map!{|h| rp.call(h)}
       end
       post_load(array)
@@ -121,6 +112,7 @@ class Sequel::Postgres::Dataset
     end
     []
   end
+  # :nocov:
     
   protected
 
@@ -170,19 +162,15 @@ class Sequel::Postgres::Dataset
     # :nocov:
   end
 
+  if defined?(Sequel::Model::ClassMethods)
+    require_relative 'model'
+  end
+
   private
 
-  # The model load can only be optimized if it's for a model and it's not a graphed dataset
-  # or using a cursor.
-  def optimize_model_load?
-    defined?(Sequel::Model::ClassMethods) &&
-      (rp = row_proc) &&
-      rp.is_a?(Class) &&
-      rp < Sequel::Model &&
-      rp.method(:call).owner == Sequel::Model::ClassMethods &&
-      opts[:optimize_model_load] != false &&
-      !opts[:use_cursor] &&
-      !opts[:graph]
+  # Whether to allow sequel_pg to optimize the each/all/with_sql_all call.
+  def allow_sequel_pg_optimization?
+    (!opts[:graph] || opts[:eager_graph]) && !opts[:cursor]
   end
 end
 
