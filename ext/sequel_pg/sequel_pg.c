@@ -24,7 +24,7 @@
 #define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
-#if !HAVE_RB_HASH_NEW_CAPA
+#ifndef HAVE_RB_HASH_NEW_CAPA
 #define rb_hash_new_capa(_) rb_hash_new()
 #endif
 
@@ -193,7 +193,7 @@ static ID spg_id_family;
 static ID spg_id_addr;
 static ID spg_id_mask_addr;
 
-#if HAVE_PQSETSINGLEROWMODE
+#ifdef HAVE_PQSETSINGLEROWMODE
 static ID spg_id_get_result;
 static ID spg_id_clear;
 static ID spg_id_check;
@@ -1433,7 +1433,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         } else if (rb_type(pg_value) == T_ARRAY) {
           type = SPG_YIELD_COLUMNS_ARRAY;
         }
-#if HAVE_RB_SET_NEW_CAPA
+#ifdef HAVE_RB_SET_NEW_CAPA
       } else if (pg_type == spg_sym_map_set) {
         if (SYMBOL_P(pg_value)) {
           type = SPG_YIELD_COLUMN_SET;
@@ -1449,7 +1449,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         type = SPG_YIELD_FIRST_ARRAY;
       } else if (pg_type == spg_sym_array_array) {
         type = SPG_YIELD_ARRAY_ARRAY;
-#if HAVE_RB_SET_NEW_CAPA
+#ifdef HAVE_RB_SET_NEW_CAPA
       } else if (pg_type == spg_sym_first_set) {
         type = SPG_YIELD_FIRST_SET;
       } else if (pg_type == spg_sym_array_set) {
@@ -1542,7 +1542,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         rb_yield(ary);
       }
       break;
-#if HAVE_RB_SET_NEW_CAPA
+#ifdef HAVE_RB_SET_NEW_CAPA
     case SPG_YIELD_COLUMN_SET:
       /* Set containing single column */
       {
@@ -1608,7 +1608,7 @@ static VALUE spg_yield_hash_rows_internal(VALUE self, PGresult *res, int enc_ind
         rb_yield(ary);
       }
       break;
-#if HAVE_RB_SET_NEW_CAPA
+#ifdef HAVE_RB_SET_NEW_CAPA
     case SPG_YIELD_FIRST_SET:
       /* Array of first column */
       h = rb_set_new_capa(ntuples);
@@ -1837,14 +1837,14 @@ static VALUE spg_yield_hash_rows(VALUE self, VALUE rres, VALUE ignore) {
 
 static VALUE spg_supports_streaming_p(VALUE self) {
   return
-#if HAVE_PQSETSINGLEROWMODE
+#ifdef HAVE_PQSETSINGLEROWMODE
   Qtrue;
 #else
   Qfalse;
 #endif
 }
 
-#if HAVE_PQSETSINGLEROWMODE
+#ifdef HAVE_PQSETSINGLEROWMODE
 static VALUE spg_set_single_row_mode(VALUE self) {
   PGconn *conn;
   conn = pg_get_pgconn(self);
@@ -2193,7 +2193,7 @@ void Init_sequel_pg(void) {
 
   rb_define_singleton_method(spg_Postgres, "supports_streaming?", spg_supports_streaming_p, 0);
 
-#if HAVE_PQSETSINGLEROWMODE
+#ifdef HAVE_PQSETSINGLEROWMODE
   spg_id_get_result = rb_intern("get_result");
   spg_id_clear = rb_intern("clear");
   spg_id_check = rb_intern("check");
