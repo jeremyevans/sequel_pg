@@ -26,12 +26,14 @@ class Sequel::Postgres::Dataset
   # :nocov:
     if RUBY_VERSION > '4'
       def as_set(column)
+        return super unless allow_sequel_pg_optimization?
         clone(:_sequel_pg_type=>:map_set, :_sequel_pg_value=>column).fetch_rows(sql){return it}
         Set.new
       end
     # :nocov:
     else
       def as_set(column)
+        return super unless allow_sequel_pg_optimization?
         rows = Set.new
         clone(:_sequel_pg_type=>:map, :_sequel_pg_value=>column).fetch_rows(sql){|s| rows.add(s)}
         rows
@@ -46,6 +48,7 @@ class Sequel::Postgres::Dataset
       if block_given?
         super
       else
+        return super unless allow_sequel_pg_optimization?
         clone(:_sequel_pg_type=>:map_array, :_sequel_pg_value=>sym).fetch_rows(sql){|a| return a}
         []
       end
@@ -62,6 +65,7 @@ class Sequel::Postgres::Dataset
   # In the case where both arguments given, use an optimized version.
   def as_hash(key_column, value_column = nil, opts = Sequel::OPTS)
     if value_column && !opts[:hash]
+      return super unless allow_sequel_pg_optimization?
       clone(:_sequel_pg_type=>:hash, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
       {}
     elsif opts.empty?
@@ -82,6 +86,7 @@ class Sequel::Postgres::Dataset
   # In the case where both arguments given, use an optimized version.
   def to_hash_groups(key_column, value_column = nil, opts = Sequel::OPTS)
     if value_column && !opts[:hash]
+      return super unless allow_sequel_pg_optimization?
       clone(:_sequel_pg_type=>:hash_groups, :_sequel_pg_value=>[key_column, value_column]).fetch_rows(sql){|s| return s}
       {}
     elsif opts.empty?
@@ -118,12 +123,14 @@ class Sequel::Postgres::Dataset
 
   # Always use optimized version
   def _select_map_multiple(ret_cols)
+    return super unless allow_sequel_pg_optimization?
     clone(:_sequel_pg_type=>:array_array).fetch_rows(sql){|a| return a}
     []
   end
 
   # Always use optimized version
   def _select_map_single
+    return super unless allow_sequel_pg_optimization?
     clone(:_sequel_pg_type=>:first_array).fetch_rows(sql){|a| return a}
     []
   end
@@ -134,12 +141,14 @@ class Sequel::Postgres::Dataset
     if RUBY_VERSION > '4'
       # Always use optimized version
       def _select_set_multiple(ret_cols)
+        return super unless allow_sequel_pg_optimization?
         clone(:_sequel_pg_type=>:array_set).fetch_rows(sql){return it}
         Set.new
       end
 
       # Always use optimized version
       def _select_set_single
+        return super unless allow_sequel_pg_optimization?
         clone(:_sequel_pg_type=>:first_set).fetch_rows(sql){return it}
         Set.new
       end
@@ -147,6 +156,7 @@ class Sequel::Postgres::Dataset
     else
       # Always use optimized version
       def _select_set_multiple(ret_cols)
+        return super unless allow_sequel_pg_optimization?
         set = Set.new
         clone(:_sequel_pg_type=>:array).fetch_rows(sql){|s| set.add s}
         set
@@ -154,6 +164,7 @@ class Sequel::Postgres::Dataset
 
       # Always use optimized version
       def _select_set_single
+        return super unless allow_sequel_pg_optimization?
         set = Set.new
         clone(:_sequel_pg_type=>:first).fetch_rows(sql){|s| set.add s}
         set

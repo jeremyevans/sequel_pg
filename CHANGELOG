@@ -1,5 +1,7 @@
 === master
 
+* Fix truncated results for map/select_map/select_order_map/as_hash/to_hash_groups/select_hash/select_hash_groups/as_set/select_set for datasets using use_cursor (jeremyevans) (#62)
+
 * Avoid compilation warnings checking for HAVE_* definitions (jeremyevans)
 
 === 1.18.0 (2025-12-01)
