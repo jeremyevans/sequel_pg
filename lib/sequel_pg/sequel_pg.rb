@@ -27,7 +27,7 @@ class Sequel::Postgres::Dataset
     if RUBY_VERSION > '4'
       def as_set(column)
         return super unless allow_sequel_pg_optimization?
-        clone(:_sequel_pg_type=>:map_set, :_sequel_pg_value=>column).fetch_rows(sql){return it}
+        clone(:_sequel_pg_type=>:map_set, :_sequel_pg_value=>column).fetch_rows(sql){|s| return s}
         Set.new
       end
     # :nocov:
@@ -142,14 +142,14 @@ class Sequel::Postgres::Dataset
       # Always use optimized version
       def _select_set_multiple(ret_cols)
         return super unless allow_sequel_pg_optimization?
-        clone(:_sequel_pg_type=>:array_set).fetch_rows(sql){return it}
+        clone(:_sequel_pg_type=>:array_set).fetch_rows(sql){|s| return s}
         Set.new
       end
 
       # Always use optimized version
       def _select_set_single
         return super unless allow_sequel_pg_optimization?
-        clone(:_sequel_pg_type=>:first_set).fetch_rows(sql){return it}
+        clone(:_sequel_pg_type=>:first_set).fetch_rows(sql){|s| return s}
         Set.new
       end
     # :nocov:
