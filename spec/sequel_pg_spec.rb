@@ -38,4 +38,39 @@ describe 'sequel_pg' do
     db.select(Sequel.as(1, :v)).stream.paged_each{|row| a << row}
     a.must_equal [{:v=>1}]
   end
+
+  it "should cancel the query when streaming is interrupted" do
+    db.drop_table?(:streaming_cancel_test)
+    db.create_table(:streaming_cancel_test) do
+      primary_key :id
+      String :data
+    end
+
+    db.run("INSERT INTO streaming_cancel_test (data) SELECT md5(random()::text) FROM generate_series(1, 10000)")
+
+    rows_read = 0
+    error_raised = false
+
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    begin
+      db[:streaming_cancel_test].stream.each do |row|
+        rows_read += 1
+        raise "interrupted" if rows_read >= 5
+      end
+    rescue RuntimeError => e
+      error_raised = true if e.message == "interrupted"
+    end
+
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+
+    error_raised.must_equal true
+    rows_read.must_equal 5
+    elapsed.must_be :<, 2.0
+
+    # Verify connection is still usable
+    db[:streaming_cancel_test].count.must_equal 10000
+
+    db.drop_table(:streaming_cancel_test)
+  end
 end

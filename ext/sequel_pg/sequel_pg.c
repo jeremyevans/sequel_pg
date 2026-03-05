@@ -2004,6 +2004,33 @@ static VALUE spg__flush_results(VALUE rconn) {
   VALUE error = 0;
   conn = pg_get_pgconn(rconn);
 
+#ifdef HAVE_PQGETCANCEL
+  /* Only cancel if an exception is being unwound. During normal
+   * completion, the query has already finished and there are no
+   * results to drain, so canceling is unnecessary. */
+  if (rb_errinfo() != Qnil) {
+    PGcancel *cancel = PQgetCancel(conn);
+    if (cancel) {
+      char errbuf[256];
+      int cancel_ok = PQcancel(cancel, errbuf, sizeof(errbuf));
+      PQfreeCancel(cancel);
+
+      if (cancel_ok) {
+        /* Cancel succeeded. Drain remaining results without raising.
+         * The cancel produces an expected error result ("canceling
+         * statement due to user request"). The original exception
+         * will propagate via rb_ensure. */
+        while ((res = PQgetResult(conn)) != NULL) {
+          PQclear(res);
+        }
+        return rconn;
+      }
+      /* Cancel failed — fall through to the normal drain loop which
+       * will check for and report any real errors. */
+    }
+  }
+#endif
+
   while ((res = PQgetResult(conn)) != NULL) {
     if (!error) {
       switch (PQresultStatus(res))
@@ -2019,7 +2046,7 @@ static VALUE spg__flush_results(VALUE rconn) {
     }
     PQclear(res);
   }
-  
+
   if (error) {
     VALUE exception = rb_exc_new3(spg_PGError, error);
     rb_iv_set(exception, "@connection", rconn);
