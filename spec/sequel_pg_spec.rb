@@ -10,6 +10,16 @@ db.extension :pg_streaming
 Sequel::Deprecation.output = false
 
 describe 'sequel_pg' do
+  if defined?(Process::CLOCK_MONOTONIC)
+    def clock_time
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+  else
+    def clock_time
+      Time.now
+    end
+  end
+
   it "should support deprecated optimized_model_load methods" do
     db.optimize_model_load.must_equal true
     db.optimize_model_load = false
@@ -40,132 +50,103 @@ describe 'sequel_pg' do
   end
 
   it "should cancel the query when streaming is interrupted" do
-    db.drop_table?(:streaming_cancel_test)
-    db.create_table(:streaming_cancel_test) do
-      primary_key :id
-      String :data
-    end
-
-    db.run("INSERT INTO streaming_cancel_test (data) SELECT md5(random()::text) FROM generate_series(1, 10000)")
+    ds = db.from{generate_series(1,10000)}.select{md5(random.function.cast_string)}
 
     rows_read = 0
     error_raised = false
 
-    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    start_time = clock_time
 
     begin
-      db[:streaming_cancel_test].stream.each do |row|
+      ds.stream.each do |row|
         rows_read += 1
         raise "interrupted" if rows_read >= 5
       end
     rescue RuntimeError => e
-      error_raised = true if e.message == "interrupted"
+      raise unless e.message == "interrupted"
+      error_raised = true
     end
 
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+    elapsed = clock_time - start_time
 
     error_raised.must_equal true
     rows_read.must_equal 5
     elapsed.must_be :<, 2.0
 
     # Verify connection is still usable
-    db[:streaming_cancel_test].count.must_equal 10000
-
-    db.drop_table(:streaming_cancel_test)
+    ds.count.must_equal 10000
   end
 
   it "should clean up quickly when streaming a large result set is interrupted" do
-    db.drop_table?(:streaming_large_test)
-    db.create_table(:streaming_large_test) do
-      primary_key :id
-      String :data, size: 200
-    end
-
     # 100,000 rows with non-trivial data
-    100.times do
-      db.run("INSERT INTO streaming_large_test (data) SELECT repeat(md5(random()::text), 6) FROM generate_series(1, 1000)")
-    end
+    ds = db.from{generate_series(1,100_000).as(:i, [:i])}.select{[:i, repeat(md5(random.function.cast_string), 6)]}
 
     rows_read = 0
-    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    start_time = clock_time
 
     begin
-      db[:streaming_large_test].stream.each do |row|
+      ds.stream.each do |row|
         rows_read += 1
         raise "stop" if rows_read >= 10
       end
-    rescue RuntimeError
-      # expected
+    rescue RuntimeError => e
+      raise unless e.message == "stop"
+      error_raised = true
     end
 
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+    elapsed = clock_time - start_time
 
     # Without cancel, draining 99,990 remaining rows takes noticeable time.
     # With cancel, cleanup should be nearly instant.
     elapsed.must_be :<, 2.0
+    error_raised.must_equal true
 
     # Connection must still be healthy
-    db[:streaming_large_test].count.must_equal 100000
+    ds.count.must_equal 100000
 
     # Can stream again successfully
     second_rows = []
-    db[:streaming_large_test].limit(3).stream.each { |r| second_rows << r }
+    ds.limit(3).stream.each { |r| second_rows << r }
     second_rows.length.must_equal 3
-
-    db.drop_table(:streaming_large_test)
   end
 
   it "should stream all rows correctly when not interrupted" do
-    db.drop_table?(:streaming_normal_test)
-    db.create_table(:streaming_normal_test) do
-      primary_key :id
-      Integer :value
-    end
-
-    db.run("INSERT INTO streaming_normal_test (value) SELECT g FROM generate_series(1, 500) g")
+    ds = db.from{generate_series(1, 500).as(:i, [:value])}
 
     rows = []
-    db[:streaming_normal_test].order(:id).stream.each do |row|
+    ds.stream.each do |row|
       rows << row[:value]
     end
 
     rows.length.must_equal 500
     rows.first.must_equal 1
     rows.last.must_equal 500
-
-    db.drop_table(:streaming_normal_test)
   end
 
   it "should handle multiple streaming interruptions on the same connection" do
-    db.drop_table?(:streaming_multi_test)
-    db.create_table(:streaming_multi_test) do
-      primary_key :id
-      String :data
-    end
-
-    db.run("INSERT INTO streaming_multi_test (data) SELECT md5(random()::text) FROM generate_series(1, 5000)")
+    ds = db.from{generate_series(1,5000)}.select{md5(random.function.cast_string)}
 
     # Interrupt streaming 5 times in a row
     5.times do |attempt|
       rows_read = 0
       begin
-        db[:streaming_multi_test].stream.each do |row|
+        ds.stream.each do |row|
           rows_read += 1
           raise "stop #{attempt}" if rows_read >= 3
         end
-      rescue RuntimeError
-        # expected
+      rescue RuntimeError => e
+        raise unless e.message.start_with?("stop ")
+        error_raised = true
       end
+      error_raised.must_equal true
     end
 
     # Connection should still be perfectly healthy
-    db[:streaming_multi_test].count.must_equal 5000
+    ds.count.must_equal 5000
 
     # Full stream should still work
     all_rows = []
-    db[:streaming_multi_test].stream.each { |r| all_rows << r }
+    ds.stream.each { |r| all_rows << r }
     all_rows.length.must_equal 5000
-
-    db.drop_table(:streaming_multi_test)
   end
 end

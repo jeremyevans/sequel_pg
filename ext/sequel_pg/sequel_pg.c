@@ -2004,16 +2004,22 @@ static VALUE spg__flush_results(VALUE rconn) {
   VALUE error = 0;
   conn = pg_get_pgconn(rconn);
 
-#ifdef HAVE_PQGETCANCEL
   /* Only cancel if an exception is being unwound. During normal
    * completion, the query has already finished and there are no
    * results to drain, so canceling is unnecessary. */
   if (rb_errinfo() != Qnil) {
+#ifdef HAVE_PQCANCELCREATE
+    PGcancelConn *cancel = PQcancelCreate(conn);
+    if (cancel) {
+      int cancel_ok = PQcancelBlocking(cancel);
+      PQcancelFinish(cancel);
+#else
     PGcancel *cancel = PQgetCancel(conn);
     if (cancel) {
       char errbuf[256];
       int cancel_ok = PQcancel(cancel, errbuf, sizeof(errbuf));
       PQfreeCancel(cancel);
+#endif
 
       if (cancel_ok) {
         /* Cancel succeeded. Drain remaining results without raising.
@@ -2025,11 +2031,10 @@ static VALUE spg__flush_results(VALUE rconn) {
         }
         return rconn;
       }
-      /* Cancel failed — fall through to the normal drain loop which
+      /* Cancel failed. Fallthrough to the normal drain loop which
        * will check for and report any real errors. */
     }
   }
-#endif
 
   while ((res = PQgetResult(conn)) != NULL) {
     if (!error) {

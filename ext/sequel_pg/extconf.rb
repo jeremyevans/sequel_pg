@@ -10,7 +10,7 @@ if (have_library('pq') || have_library('libpq') || have_library('ms/libpq')) && 
   have_func 'rb_hash_new_capa'
   have_func 'rb_set_new_capa'
   have_func 'PQsetSingleRowMode'
-  have_func 'PQgetCancel'
+  have_func 'PQcancelCreate'
   have_func 'timegm'
   create_makefile("sequel_pg")
 else
