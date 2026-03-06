@@ -1,4 +1,4 @@
-=== master
+=== 1.19.0 (2026-03-06)
 
 * Cancel the query if an exception is raised while streaming query results (jtmkrueger, jeremyevans) (#66)
 
