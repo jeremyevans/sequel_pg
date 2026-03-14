@@ -30,8 +30,8 @@ jobs:
     env:
       BUNDLE_GEMFILE: .ci.gemfile
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6
       with:
         repository: jeremyevans/sequel
         path: sequel
