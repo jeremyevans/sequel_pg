@@ -80,6 +80,8 @@
 #define SPG_YIELD_ALL 22
 #define SPG_YIELD_ALL_MODEL 23
 
+#define SPG_DATE_GREGORIAN spg_neg_inf
+
 /* External functions defined by ruby-pg */
 PGconn* pg_get_pgconn(VALUE);
 PGresult* pgresult_get(VALUE);
@@ -542,7 +544,7 @@ static VALUE spg_date(const char *s, VALUE self, size_t length) {
     year++;
   }
 
-  return rb_funcall(spg_Date, spg_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
+  return rb_funcall(spg_Date, spg_id_new, 4, INT2NUM(year), INT2NUM(month), INT2NUM(day), SPG_DATE_GREGORIAN);
 }
 
 static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
@@ -724,7 +726,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
        * While PostgreSQL generally returns timestamps in local time, it's unwise to rely on this.
        */
       offset_fraction = offset_seconds/(double)SPG_SECONDS_PER_DAY;
-      dt = rb_funcall(spg_DateTime, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 8, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction), SPG_DATE_GREGORIAN);
       SPG_DT_ADD_USEC
 
       if (tz & SPG_APP_LOCAL) {
@@ -735,7 +737,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
       } 
       return dt;
     } else if (!(tz & (SPG_APP_LOCAL|SPG_DB_LOCAL|SPG_APP_UTC|SPG_DB_UTC))) {
-      dt = rb_funcall(spg_DateTime, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 8, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(0.0), SPG_DATE_GREGORIAN);
       SPG_DT_ADD_USEC
       return dt;
     }
@@ -743,7 +745,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
     /* No offset given, and some timezone combination given */
     if (tz & SPG_DB_LOCAL) {
       offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
-      dt = rb_funcall(spg_DateTime, spg_id_new, 7, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 8, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(offset_fraction), SPG_DATE_GREGORIAN);
       SPG_DT_ADD_USEC
       if (tz & SPG_APP_UTC) {
         return rb_funcall(dt, spg_id_new_offset, 1, INT2NUM(0));
@@ -751,7 +753,7 @@ static VALUE spg_timestamp(const char *s, VALUE self, size_t length, int tz) {
         return dt;
       }
     } else {
-      dt = rb_funcall(spg_DateTime, spg_id_new, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec));
+      dt = rb_funcall(spg_DateTime, spg_id_new, 8, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec), rb_float_new(0.0), SPG_DATE_GREGORIAN);
       SPG_DT_ADD_USEC
       if (tz & SPG_APP_LOCAL) {
         offset_fraction = NUM2INT(rb_funcall(rb_funcall(rb_cTime, spg_id_local, 6, INT2NUM(year), INT2NUM(month), INT2NUM(day), INT2NUM(hour), INT2NUM(min), INT2NUM(sec)), spg_id_utc_offset, 0))/SPG_SECONDS_PER_DAY;
