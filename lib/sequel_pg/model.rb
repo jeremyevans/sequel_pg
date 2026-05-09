@@ -37,12 +37,26 @@ class Sequel::Postgres::Dataset
 
   private
 
-  # The model load can only be optimized if it's for a model and it's not a graphed dataset
-  # or using a cursor.
-  def optimize_model_load?(rp)
-    rp.is_a?(Class) &&
-      rp < Sequel::Model &&
-      rp.method(:call).owner == Sequel::Model::ClassMethods &&
-      opts[:optimize_model_load] != false
+  if Sequel::Model.respond_to?(:shape_friendly)
+    # The model load can only be optimized if it's for a model and it's not a graphed dataset
+    # or using a cursor.
+    def optimize_model_load?(rp)
+      rp.is_a?(Class) &&
+        rp < Sequel::Model &&
+        !rp.shape_friendly &&
+        rp.method(:call).owner == Sequel::Model::ClassMethods &&
+        opts[:optimize_model_load] != false
+    end
+  # :nocov:
+  else
+    # The model load can only be optimized if it's for a model and it's not a graphed dataset
+    # or using a cursor.
+    def optimize_model_load?(rp)
+      rp.is_a?(Class) &&
+        rp < Sequel::Model &&
+        rp.method(:call).owner == Sequel::Model::ClassMethods &&
+        opts[:optimize_model_load] != false
+    end
+  # :nocov:
   end
 end
