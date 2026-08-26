@@ -47,7 +47,7 @@ class Sequel::Postgres::Dataset
         rp.method(:call).owner == Sequel::Model::ClassMethods &&
         opts[:optimize_model_load] != false
     end
-  # :nocov:
+  # simplecov:disable
   else
     # The model load can only be optimized if it's for a model and it's not a graphed dataset
     # or using a cursor.
@@ -57,6 +57,6 @@ class Sequel::Postgres::Dataset
         rp.method(:call).owner == Sequel::Model::ClassMethods &&
         opts[:optimize_model_load] != false
     end
-  # :nocov:
+  # simplecov:enable
   end
 end

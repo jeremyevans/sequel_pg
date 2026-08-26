@@ -1,11 +1,11 @@
-# :nocov:
+# simplecov:disable
 unless Sequel::Postgres.respond_to?(:supports_streaming?)
   raise LoadError, "either sequel_pg not loaded, or an old version of sequel_pg loaded"
 end
 unless Sequel::Postgres.supports_streaming?
   raise LoadError, "streaming is not supported by the version of libpq in use"
 end
-# :nocov:
+# simplecov:enable
 
 # Database methods necessary to support streaming.  You should load this extension
 # into your database object:
@@ -75,13 +75,13 @@ module Sequel::Postgres::Streaming
 
     private
 
-    # :nocov:
+    # simplecov:disable
     unless Sequel::Postgres::Adapter.method_defined?(:send_query_params)
       def send_query_params(*args)
         send_query(*args)
       end
     end
-    # :nocov:
+    # simplecov:enable
 
     if Sequel::Database.instance_methods.map(&:to_s).include?('log_connection_yield')
       # If using single row mode, send the query instead of executing it.
@@ -97,7 +97,7 @@ module Sequel::Postgres::Streaming
         end
       end
     else
-      # :nocov:
+      # simplecov:disable
       def execute_query(sql, args)
         if @single_row_mode
           @single_row_mode = false
@@ -109,7 +109,7 @@ module Sequel::Postgres::Streaming
           super
         end
       end
-      # :nocov:
+      # simplecov:enable
     end
   end
 

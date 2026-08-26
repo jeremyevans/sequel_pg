@@ -21,16 +21,16 @@ class Sequel::Postgres::Dataset
     opts.has_key?(:optimize_model_load) ?  opts[:optimize_model_load] : true
   end
 
-  # :nocov:
+  # simplecov:disable
   if method_defined?(:as_set)
-  # :nocov:
+  # simplecov:enable
     if RUBY_VERSION > '4'
       def as_set(column)
         return super unless allow_sequel_pg_optimization?
         clone(:_sequel_pg_type=>:map_set, :_sequel_pg_value=>column).fetch_rows(sql){|s| return s}
         Set.new
       end
-    # :nocov:
+    # simplecov:disable
     else
       def as_set(column)
         return super unless allow_sequel_pg_optimization?
@@ -39,7 +39,7 @@ class Sequel::Postgres::Dataset
         rows
       end
     end
-    # :nocov:
+    # simplecov:enable
   end
 
   # In the case where an argument is given, use an optimized version.
@@ -75,13 +75,13 @@ class Sequel::Postgres::Dataset
     end
   end
 
-  # :nocov:
+  # simplecov:disable
   unless Sequel::Dataset.method_defined?(:as_hash)
     # Handle previous versions of Sequel that use to_hash instead of as_hash
     alias to_hash as_hash
     remove_method :as_hash
   end
-  # :nocov:
+  # simplecov:enable
 
   # In the case where both arguments given, use an optimized version.
   def to_hash_groups(key_column, value_column = nil, opts = Sequel::OPTS)
@@ -101,7 +101,7 @@ class Sequel::Postgres::Dataset
     with_sql_all(sql, &block)
   end
 
-  # :nocov:
+  # simplecov:disable
   # Generally overridden by the model support, only used if the model
   # support is not used.
   def with_sql_all(sql, &block)
@@ -117,7 +117,7 @@ class Sequel::Postgres::Dataset
     end
     []
   end
-  # :nocov:
+  # simplecov:enable
     
   protected
 
@@ -135,9 +135,9 @@ class Sequel::Postgres::Dataset
     []
   end
 
-  # :nocov:
+  # simplecov:disable
   if method_defined?(:_select_set_multiple)
-  # :nocov:
+  # simplecov:enable
     if RUBY_VERSION > '4'
       # Always use optimized version
       def _select_set_multiple(ret_cols)
@@ -152,7 +152,7 @@ class Sequel::Postgres::Dataset
         clone(:_sequel_pg_type=>:first_set).fetch_rows(sql){|s| return s}
         Set.new
       end
-    # :nocov:
+    # simplecov:disable
     else
       # Always use optimized version
       def _select_set_multiple(ret_cols)
@@ -170,7 +170,7 @@ class Sequel::Postgres::Dataset
         set
       end
     end
-    # :nocov:
+    # simplecov:enable
   end
 
   if defined?(Sequel::Model::ClassMethods)
@@ -189,10 +189,10 @@ if defined?(Sequel::Postgres::PGArray)
   # pg_array extension previously loaded
 
   class Sequel::Postgres::PGArray::Creator
-    # :nocov:
+    # simplecov:disable
     # Avoid method redefined verbose warning
     alias call call if method_defined?(:call)
-    # :nocov:
+    # simplecov:enable
 
     # Override Creator to use sequel_pg's C-based parser instead of the pure ruby parser.
     def call(string)
