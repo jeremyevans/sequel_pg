@@ -2008,6 +2008,7 @@ static VALUE spg__flush_results(VALUE rconn) {
   VALUE error = 0;
   conn = pg_get_pgconn(rconn);
 
+#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 4))
   /* Only cancel if an exception is being unwound. During normal
    * completion, the query has already finished and there are no
    * results to drain, so canceling is unnecessary. */
@@ -2039,6 +2040,7 @@ static VALUE spg__flush_results(VALUE rconn) {
        * will check for and report any real errors. */
     }
   }
+#endif
 
   while ((res = PQgetResult(conn)) != NULL) {
     if (!error) {

@@ -1,5 +1,7 @@
 === master
 
+* Skip query canceling on Ruby < 2.4 (jeremyevans)
+
 * Only allow parsing arrays of up to 6 dimensions (jeremyevans)
 
 * Disable model optimization if the model_class.shape_friendly is true (jeremyevans)
