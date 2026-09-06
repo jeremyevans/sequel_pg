@@ -1,4 +1,4 @@
-=== master
+=== 1.20.0 (2026-09-06)
 
 * Skip query canceling on Ruby < 2.4 (jeremyevans)
 
