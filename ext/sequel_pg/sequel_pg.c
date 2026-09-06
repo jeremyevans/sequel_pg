@@ -279,7 +279,7 @@ pg_text_dec_integer(char *val, size_t len)
 
 static VALUE spg__array_col_value(char *v, size_t length, VALUE converter, int enc_index, int oid, VALUE db);
 
-static VALUE read_array(int *index, char *c_pg_array_string, long array_string_length, VALUE buf, VALUE converter, int enc_index, int oid, VALUE db) {
+static VALUE read_array(int *index, char *c_pg_array_string, long array_string_length, VALUE buf, VALUE converter, int enc_index, int oid, VALUE db, int level) {
   int word_index = 0;
   char *word = RSTRING_PTR(buf);
 
@@ -341,7 +341,10 @@ static VALUE read_array(int *index, char *c_pg_array_string, long array_string_l
       else if(c == '{')
       {
         (*index)++;
-        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, buf, converter, enc_index, oid, db));
+        if (level >= 6) {
+            rb_raise(rb_eArgError, "cannot parse array with more than 6 dimensions");
+        }
+        rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, buf, converter, enc_index, oid, db, level + 1));
         escapeNext = 1;
       }
       else
@@ -425,7 +428,8 @@ static VALUE parse_pg_array(VALUE self, VALUE pg_array_string, VALUE converter) 
     converter,
     enc_get_index(pg_array_string),
     0,
-    Qnil);
+    Qnil,
+    1);
 }
 
 static VALUE spg_timestamp_error(const char *s, VALUE self, const char *error_msg) {
@@ -980,7 +984,7 @@ static VALUE spg_array_value(char *c_pg_array_string, int array_string_length, V
   buf = rb_str_buf_new(array_string_length);
   rb_str_set_len(buf, array_string_length);
   rb_obj_freeze(buf);
-  args[0] = read_array(&index, c_pg_array_string, array_string_length, buf, converter, enc_index, oid, self);
+  args[0] = read_array(&index, c_pg_array_string, array_string_length, buf, converter, enc_index, oid, self, 1);
   return rb_class_new_instance(2, args, spg_PGArray);
 }
 
