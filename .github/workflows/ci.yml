@@ -34,7 +34,7 @@ jobs:
           - { os: ubuntu-26.04, ruby: 3.3 }
           - { os: ubuntu-26.04, ruby: 3.4 }
           - { os: ubuntu-26.04, ruby: "4.0" }
-          - { os: ubuntu-22.04, ruby: "1.9.3" }
+          - { os: ubuntu-22.04, ruby: "1.9.3", sequel_ref: "5.108.0" }
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.ruby }}
     env:
@@ -45,6 +45,7 @@ jobs:
       with:
         repository: jeremyevans/sequel
         path: sequel
+        ref: ${{ matrix.sequel_ref }}
     - run: sudo apt-get -yqq install libpq-dev
     - uses: ruby/setup-ruby@v1
       with:
