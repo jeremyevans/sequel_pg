@@ -27,6 +27,7 @@ task :spec_cov=>:compile do
   ENV['RUBYOPT'] = "-r #{__dir__}/spec/coverage_helper.rb #{ENV['RUBYOPT']}"
   ENV['SIMPLECOV_COMMAND_NAME'] = "sequel_pg"
   sh %'#{FileUtils::RUBY} -I ../sequel/lib spec/sequel_pg_spec.rb'
+  next if RUBY_VERSION < '2'
 
   ENV['RUBYOPT'] = "-I lib -r sequel -r sequel/extensions/pg_array #{ENV['RUBYOPT']}"
   ENV['SEQUEL_PG_STREAM'] = "1"
