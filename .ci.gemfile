@@ -45,7 +45,7 @@ else
   gem 'minitest', '>=5.7'
 end
 
-if RUBY_VERSION < '2'
+if RUBY_VERSION < '2.1'
   gem "pg", '<0.19'
   gem 'rake-compiler', '<1'
 else
